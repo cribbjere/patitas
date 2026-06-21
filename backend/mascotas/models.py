@@ -50,6 +50,22 @@ class Mascota(models.Model):
         default='activo'
     )
 
+    alergias = models.TextField(
+        blank=True,
+        null=True
+    )
+
+    grupo_sanguineo = models.CharField(
+        max_length=50,
+        blank=True,
+        null=True
+    )
+
+    observaciones_generales = models.TextField(
+        blank=True,
+        null=True
+    )
+
     cliente = models.ForeignKey(
         Cliente,
         on_delete=models.CASCADE,
