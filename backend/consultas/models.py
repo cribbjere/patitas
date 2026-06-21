@@ -127,5 +127,59 @@ class Cirugia(models.Model):
         related_name='cirugias_registradas'
     )
 
+class ServicioHigiene(models.Model):
+
+    TIPOS_SERVICIO = [
+        ('baño', 'Baño'),
+        ('peluqueria', 'Peluquería'),
+        ('baño_y_corte', 'Baño y corte'),
+        ('corte_uñas', 'Corte de uñas'),
+        ('limpieza_oidos', 'Limpieza de oídos'),
+        ('baño_antipulgas', 'Baño antipulgas'),
+    ]
+
+    ESTADOS = [
+        ('pendiente', 'Pendiente'),
+        ('realizado', 'Realizado'),
+        ('cancelado', 'Cancelado'),
+    ]
+
+    fecha = models.DateField()
+
+    tipo_servicio = models.CharField(
+        max_length=50,
+        choices=TIPOS_SERVICIO
+    )
+
+    precio = models.DecimalField(
+        max_digits=10,
+        decimal_places=2,
+        blank=True,
+        null=True
+    )
+
+    estado = models.CharField(
+        max_length=20,
+        choices=ESTADOS,
+        default='pendiente'
+    )
+
+    observaciones = models.TextField(
+        blank=True,
+        null=True
+    )
+
+    mascota = models.ForeignKey(
+        Mascota,
+        on_delete=models.CASCADE,
+        related_name='servicios_higiene'
+    )
+
+    usuario = models.ForeignKey(
+        User,
+        on_delete=models.PROTECT,
+        related_name='servicios_higiene_registrados'
+    )
+
     def __str__(self):
-        return f"{self.tipo_cirugia} - {self.mascota.nombre}"
+        return f"{self.tipo_servicio} - {self.mascota.nombre}"
