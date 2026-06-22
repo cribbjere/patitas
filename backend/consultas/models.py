@@ -1,6 +1,7 @@
 from django.db import models
 from django.contrib.auth.models import User
 from mascotas.models import Mascota
+from servicios.models import Servicio
 
 
 class Consulta(models.Model):
@@ -129,15 +130,6 @@ class Cirugia(models.Model):
 
 class ServicioHigiene(models.Model):
 
-    TIPOS_SERVICIO = [
-        ('baño', 'Baño'),
-        ('peluqueria', 'Peluquería'),
-        ('baño_y_corte', 'Baño y corte'),
-        ('corte_uñas', 'Corte de uñas'),
-        ('limpieza_oidos', 'Limpieza de oídos'),
-        ('baño_antipulgas', 'Baño antipulgas'),
-    ]
-
     ESTADOS = [
         ('pendiente', 'Pendiente'),
         ('realizado', 'Realizado'),
@@ -146,16 +138,16 @@ class ServicioHigiene(models.Model):
 
     fecha = models.DateField()
 
-    tipo_servicio = models.CharField(
-        max_length=50,
-        choices=TIPOS_SERVICIO
+    servicio = models.ForeignKey(
+        Servicio,
+        on_delete=models.PROTECT,
+        related_name='servicios_higiene'
     )
 
     precio = models.DecimalField(
         max_digits=10,
         decimal_places=2,
-        blank=True,
-        null=True
+        default=0
     )
 
     estado = models.CharField(
@@ -181,5 +173,11 @@ class ServicioHigiene(models.Model):
         related_name='servicios_higiene_registrados'
     )
 
+    def save(self, *args, **kwargs):
+
+        self.precio = self.servicio.precio
+
+        super().save(*args, **kwargs)
+
     def __str__(self):
-        return f"{self.tipo_servicio} - {self.mascota.nombre}"
+        return f"{self.servicio.descripcion} - {self.mascota.nombre}"
