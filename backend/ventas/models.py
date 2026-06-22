@@ -3,7 +3,7 @@ from django.contrib.auth.models import User
 from django.core.exceptions import ValidationError
 
 from clientes.models import Cliente
-from inventario.models import Producto, Stock
+from inventario.models import Producto, Stock, MovimientoStock
 
 
 class Venta(models.Model):
@@ -105,6 +105,12 @@ class DetalleVenta(models.Model):
 
     def clean(self):
 
+        if self.producto.tipo_producto == 'interno':
+
+            raise ValidationError(
+                'Este producto es de uso interno y no puede venderse.'
+            )
+
         stock = Stock.objects.get(
             producto=self.producto
         )
@@ -116,6 +122,8 @@ class DetalleVenta(models.Model):
             )
 
     def save(self, *args, **kwargs):
+
+        es_nuevo = self.pk is None
 
         self.clean()
 
@@ -129,6 +137,14 @@ class DetalleVenta(models.Model):
         )
 
         super().save(*args, **kwargs)
+
+        if es_nuevo:
+            MovimientoStock.objects.create(
+                producto=self.producto,
+                tipo_movimiento='salida',
+                motivo='venta',
+                cantidad=self.cantidad
+            )
 
         total_venta = sum(
             detalle.subtotal

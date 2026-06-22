@@ -15,6 +15,19 @@ class DetalleVentaInline(admin.TabularInline):
         'subtotal',
     )
 
+    def formfield_for_foreignkey(self, db_field, request, **kwargs):
+
+        if db_field.name == "producto":
+            kwargs["queryset"] = db_field.remote_field.model.objects.filter(
+                tipo_producto__in=['comercial', 'ambos']
+            )
+
+        return super().formfield_for_foreignkey(
+            db_field,
+            request,
+            **kwargs
+        )
+
 @admin.register(Venta)
 class VentaAdmin(admin.ModelAdmin):
 
