@@ -1,8 +1,29 @@
 from django.contrib import admin
 from django.db.models import Sum
 
-from .models import MovimientoCaja
+from .models import (
+    MovimientoCaja, 
+    CierreCaja
+)
 
+@admin.register(CierreCaja)
+class CierreCajaAdmin(admin.ModelAdmin):
+
+    list_display = (
+        'fecha_cierre',
+        'saldo_inicial',
+        'ingresos',
+        'egresos',
+        'saldo_final',
+        'usuario'
+    )
+
+    readonly_fields = (
+        'fecha_cierre',
+        'ingresos',
+        'egresos',
+        'saldo_final',
+    )  
 
 @admin.register(MovimientoCaja)
 class MovimientoCajaAdmin(admin.ModelAdmin):
