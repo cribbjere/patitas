@@ -42,6 +42,12 @@ class Producto(models.Model):
         choices=TIPOS_PRODUCTO
     )
 
+    precio_compra_referencia = models.DecimalField(
+        max_digits=10,
+        decimal_places=2,
+        default=0
+    )  
+
     precio_venta = models.DecimalField(
         max_digits=10,
         decimal_places=2,
