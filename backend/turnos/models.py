@@ -59,4 +59,4 @@ class Turno(models.Model):
                 )
 
     def __str__(self):
-        return f"{self.fecha} - {self.mascota.nombre}"
+        return f"{self.fecha} {self.hora} - {self.mascota.nombre} ({self.estado})"

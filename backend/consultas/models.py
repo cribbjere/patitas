@@ -3,6 +3,7 @@ from django.contrib.auth.models import User
 from mascotas.models import Mascota
 from servicios.models import Servicio
 from caja.models import MovimientoCaja
+from turnos.models import Turno
 
 
 class Consulta(models.Model):
@@ -62,6 +63,14 @@ class Consulta(models.Model):
         related_name='consultas'
     )
 
+    turno = models.OneToOneField(
+        Turno,
+        on_delete=models.SET_NULL,
+        related_name='consulta',
+        blank=True,
+        null=True
+    )
+
     usuario = models.ForeignKey(
         User,
         on_delete=models.PROTECT,
@@ -78,6 +87,10 @@ class Consulta(models.Model):
         self.precio = self.servicio.precio
 
         super().save(*args, **kwargs)
+
+        if self.turno and self.estado == 'realizada':
+            self.turno.estado = 'realizado'
+            self.turno.save()
 
         if estado_anterior != 'realizada' and self.estado == 'realizada':
 
@@ -137,6 +150,14 @@ class Vacunacion(models.Model):
         related_name='vacunaciones'
     )
 
+    turno = models.OneToOneField(
+        Turno,
+        on_delete=models.SET_NULL,
+        related_name='vacunacion',
+        blank=True,
+        null=True
+    )
+
     usuario = models.ForeignKey(
         User,
         on_delete=models.PROTECT,
@@ -153,6 +174,10 @@ class Vacunacion(models.Model):
         self.precio = self.servicio.precio
 
         super().save(*args, **kwargs)
+
+        if self.turno and self.estado == 'aplicada':
+            self.turno.estado = 'realizado'
+            self.turno.save()
 
         if estado_anterior != 'aplicada' and self.estado == 'aplicada':
 
@@ -214,6 +239,14 @@ class Cirugia(models.Model):
         related_name='cirugias'
     )
 
+    turno = models.OneToOneField(
+        Turno,
+        on_delete=models.SET_NULL,
+        related_name='cirugia',
+        blank=True,
+        null=True
+    )
+
     usuario = models.ForeignKey(
         User,
         on_delete=models.PROTECT,
@@ -230,6 +263,10 @@ class Cirugia(models.Model):
         self.precio = self.servicio.precio
 
         super().save(*args, **kwargs)
+
+        if self.turno and self.estado == 'realizada':
+            self.turno.estado = 'realizado'
+            self.turno.save()
 
         if estado_anterior != 'realizada' and self.estado == 'realizada':
 
@@ -283,6 +320,14 @@ class ServicioHigiene(models.Model):
         related_name='servicios_higiene'
     )
 
+    turno = models.OneToOneField(
+        Turno,
+        on_delete=models.SET_NULL,
+        related_name='servicio_higiene',
+        blank=True,
+        null=True
+    )
+
     usuario = models.ForeignKey(
         User,
         on_delete=models.PROTECT,
@@ -299,6 +344,10 @@ class ServicioHigiene(models.Model):
         self.precio = self.servicio.precio
 
         super().save(*args, **kwargs)
+
+        if self.turno and self.estado == 'realizado':
+            self.turno.estado = 'realizado'
+            self.turno.save()
 
         if estado_anterior != 'realizado' and self.estado == 'realizado':
 
