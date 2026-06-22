@@ -1,3 +1,21 @@
-from django.shortcuts import render
+from rest_framework import viewsets
 
-# Create your views here.
+from .models import (
+    MovimientoCaja,
+    CierreCaja
+)
+
+from .serializers import (
+    MovimientoCajaSerializer,
+    CierreCajaSerializer
+)
+
+
+class MovimientoCajaViewSet(viewsets.ModelViewSet):
+    queryset = MovimientoCaja.objects.all()
+    serializer_class = MovimientoCajaSerializer
+
+
+class CierreCajaViewSet(viewsets.ModelViewSet):
+    queryset = CierreCaja.objects.all()
+    serializer_class = CierreCajaSerializer

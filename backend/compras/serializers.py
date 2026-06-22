@@ -2,7 +2,7 @@ from rest_framework import serializers
 
 from .models import (
     Compra,
-    DetalleCompra,
+    CompraDetalle,
     Proveedor
 )
 
@@ -24,5 +24,5 @@ class CompraSerializer(serializers.ModelSerializer):
 class DetalleCompraSerializer(serializers.ModelSerializer):
 
     class Meta:
-        model = DetalleCompra
+        model = CompraDetalle
         fields = '__all__'
