@@ -13,6 +13,7 @@ class MovimientoCaja(models.Model):
     MOTIVOS = [
         ('venta', 'Venta'),
         ('compra', 'Compra'),
+        ('servicio_clinico', 'Servicio clínico'),
         ('ajuste_manual', 'Ajuste manual'),
     ]
 
