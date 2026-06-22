@@ -50,7 +50,8 @@ INSTALLED_APPS = [
     'consultas',
     'inventario',
     'ventas',
-    'compras'
+    'compras',
+    'caja',
 ]
 
 MIDDLEWARE = [
@@ -121,9 +122,9 @@ AUTH_PASSWORD_VALIDATORS = [
 # Internationalization
 # https://docs.djangoproject.com/en/6.0/topics/i18n/
 
-LANGUAGE_CODE = 'en-us'
+LANGUAGE_CODE = 'es-ar'
 
-TIME_ZONE = 'UTC'
+TIME_ZONE = 'America/Argentina/Cordoba'
 
 USE_I18N = True
 

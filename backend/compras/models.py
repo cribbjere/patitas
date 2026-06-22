@@ -1,6 +1,8 @@
 from django.db import models
 from django.contrib.auth.models import User
 from inventario.models import Producto, MovimientoStock
+from django.utils import timezone
+from caja.models import MovimientoCaja
 
 class Proveedor(models.Model):
 
@@ -34,6 +36,11 @@ class Proveedor(models.Model):
 
 class Compra(models.Model):
 
+    ESTADOS_PAGO = [
+        ('pendiente', 'Pendiente'),
+        ('pagada', 'Pagada'),
+    ]
+
     fecha = models.DateField()
 
     numero_comprobante = models.CharField(
@@ -47,6 +54,17 @@ class Compra(models.Model):
         max_digits=12,
         decimal_places=2,
         default=0
+    )
+
+    estado_pago = models.CharField(
+        max_length=20,
+        choices=ESTADOS_PAGO,
+        default='pendiente'
+    )
+
+    fecha_pago = models.DateTimeField(
+        blank=True,
+        null=True
     )
 
     numero_factura = models.CharField(
@@ -91,7 +109,24 @@ class Compra(models.Model):
 
             self.numero_comprobante = f"COMP-{nuevo_numero:06d}"
 
+        if self.estado_pago == 'pagada' and not self.fecha_pago:
+            self.fecha_pago = timezone.now()
+
+        estado_anterior = None
+
+        if self.pk:
+            estado_anterior = Compra.objects.get(pk=self.pk).estado_pago
+
         super().save(*args, **kwargs)
+
+        if estado_anterior != 'pagada' and self.estado_pago == 'pagada':
+            MovimientoCaja.objects.create(
+                tipo_movimiento='egreso',
+                motivo='compra',
+                descripcion=f"Pago de {self.numero_comprobante}",
+                monto=self.total,
+                usuario=self.usuario
+    )
 
     def __str__(self):
         return f"Compra #{self.id} - {self.proveedor.nombre}"
