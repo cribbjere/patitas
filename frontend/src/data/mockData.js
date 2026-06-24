@@ -172,3 +172,40 @@ export const productos = [
     estado: true,
   },
 ]
+export const stock = [
+  {
+    id: 1,
+    productoId: 1,
+    cantidad: 12,
+    stockMinimo: 5,
+    ultimaActualizacion: '2026-06-24',
+  },
+  {
+    id: 2,
+    productoId: 2,
+    cantidad: 8,
+    stockMinimo: 5,
+    ultimaActualizacion: '2026-06-24',
+  },
+  {
+    id: 3,
+    productoId: 3,
+    cantidad: 3,
+    stockMinimo: 4,
+    ultimaActualizacion: '2026-06-23',
+  },
+  {
+    id: 4,
+    productoId: 4,
+    cantidad: 0,
+    stockMinimo: 3,
+    ultimaActualizacion: '2026-06-22',
+  },
+  {
+    id: 5,
+    productoId: 5,
+    cantidad: 15,
+    stockMinimo: 5,
+    ultimaActualizacion: '2026-06-21',
+  },
+]
