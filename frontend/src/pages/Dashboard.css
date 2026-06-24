@@ -1,0 +1,214 @@
+.dashboard-page {
+    width: 100%;
+    max-width: 100%;
+    font-family: 'Poppins', sans-serif;
+}
+
+.dashboard-header {
+    margin-bottom: 16px;
+}
+
+.dashboard-header h1 {
+    margin: 0;
+    color: #1d2944;
+    font-size: 30px;
+    font-weight: 800;
+    line-height: 1;
+}
+
+.dashboard-header p {
+    margin: 6px 0 0;
+    color: #7c849d;
+    font-size: 20px;
+    font-weight: 400;
+    line-height: 1.1;
+}
+
+.dashboard-stats {
+    width: 100%;
+    display: grid;
+    grid-template-columns: repeat(4, minmax(0, 1fr));
+    gap: 14px;
+    margin-bottom: 16px;
+}
+
+.dashboard-stat-card {
+    height: 105px;
+    background-color: #ffffff;
+    border-radius: 10px;
+    padding: 14px 16px;
+    box-shadow: 0px 8px 18px rgba(0, 0, 0, 0.12);
+
+    display: flex;
+    align-items: center;
+    justify-content: space-between;
+    gap: 12px;
+}
+
+.dashboard-stat-card p {
+    margin: 0;
+    color: #7c849d;
+    font-size: 16px;
+    font-weight: 400;
+}
+
+.dashboard-stat-card strong {
+    margin: 3px 0;
+    color: #000000;
+    font-size: 30px;
+    font-weight: 800;
+    line-height: 1;
+    display: block;
+}
+
+.dashboard-stat-card span {
+    color: #7c849d;
+    font-size: 14px;
+    font-weight: 400;
+}
+
+.stat-icon {
+    color: #2f8c80;
+    font-size: 38px;
+    min-width: 38px;
+}
+
+.dashboard-content-grid {
+    display: grid;
+    grid-template-columns: minmax(0, 2fr) minmax(280px, 0.75fr);
+    gap: 16px;
+    align-items: stretch;
+    margin-bottom: 16px;
+}
+
+.dashboard-calendar-card {
+    min-width: 0;
+}
+
+.dashboard-vaccine-card {
+    height: 360px;
+    background-color: #ffffff;
+    border-radius: 10px;
+    padding: 18px;
+    box-shadow: 0px 8px 18px rgba(0, 0, 0, 0.12);
+    overflow: hidden;
+}
+
+.dashboard-vaccine-card h3 {
+    margin: 0 0 14px;
+    color: #1d2944;
+    font-size: 28px;
+    font-weight: 800;
+    line-height: 1.2;
+}
+
+.vaccine-list {
+    display: flex;
+    flex-direction: column;
+}
+
+.vaccine-item {
+    display: flex;
+    justify-content: space-between;
+    gap: 12px;
+    padding: 13px 0;
+    border-bottom: 1px solid #eeeeee;
+}
+
+.vaccine-item div {
+    display: flex;
+    flex-direction: column;
+    gap: 3px;
+}
+
+.vaccine-item strong {
+    color: #1d2944;
+    font-size: 15px;
+    font-weight: 700;
+}
+
+.vaccine-item span {
+    color: #7c849d;
+    font-size: 14px;
+    font-weight: 400;
+}
+
+.vaccine-item p {
+    margin: 0;
+    color: #1d2944;
+    font-size: 14px;
+    font-weight: 400;
+    white-space: nowrap;
+}
+
+.dashboard-sales-card {
+    background-color: #ffffff;
+    border-radius: 10px;
+    padding: 18px;
+    box-shadow: 0px 8px 18px rgba(0, 0, 0, 0.12);
+}
+
+.dashboard-sales-card h3 {
+    margin: 0 0 12px;
+    color: #1d2944;
+    font-size: 24px;
+    font-weight: 800;
+}
+
+.dashboard-sales-card table {
+    width: 100%;
+    border-collapse: collapse;
+}
+
+.dashboard-sales-card th {
+    color: #7c849d;
+    font-size: 14px;
+    font-weight: 600;
+    text-align: left;
+    padding: 8px 0;
+}
+
+.dashboard-sales-card td {
+    color: #1d2944;
+    font-size: 14px;
+    font-weight: 400;
+    padding: 10px 0;
+    border-top: 1px solid #eeeeee;
+}
+
+.dashboard-sales-card td span {
+    background-color: #cde8bd;
+    color: #2f8c80;
+    border-radius: 8px;
+    padding: 5px 13px;
+    font-size: 13px;
+    font-weight: 700;
+}
+
+@media (max-width: 1200px) {
+    .dashboard-stats {
+        grid-template-columns: repeat(2, 1fr);
+    }
+
+    .dashboard-content-grid {
+        grid-template-columns: 1fr;
+    }
+
+    .dashboard-vaccine-card {
+        height: auto;
+    }
+}
+
+@media (max-width: 768px) {
+    .dashboard-stats {
+        grid-template-columns: 1fr;
+    }
+
+    .dashboard-header h1 {
+        font-size: 26px;
+    }
+
+    .dashboard-header p {
+        font-size: 17px;
+    }
+}

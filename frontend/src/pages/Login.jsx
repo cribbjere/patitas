@@ -1,8 +1,16 @@
+import { useNavigate } from 'react-router-dom'
 import './Login.css'
 import logoPatitas from '../assets/logos/logo-patitas.png'
 import huellaAzul from '../assets/icons/huella-azul.png'
 
 function Login() {
+  const navigate = useNavigate()
+
+  const handleSubmit = (e) => {
+    e.preventDefault()
+    navigate('/dashboard')
+  }
+
   return (
     <div className="login-page">
       <div className="login-left">
@@ -31,7 +39,7 @@ function Login() {
           <h2>Iniciar Sesión</h2>
           <p className="login-subtitle">Ingresá tus credenciales</p>
 
-          <form>
+          <form onSubmit={handleSubmit}>
             <label>Usuario</label>
 
             <div className="input-group-login">

@@ -1,0 +1,24 @@
+.main-layout {
+    width: 100vw;
+    height: 100vh;
+    display: flex;
+    overflow: hidden;
+    background-color: #f4efe7;
+}
+
+.main-area {
+    flex: 1;
+    min-width: 0;
+    height: 100vh;
+    display: flex;
+    flex-direction: column;
+    overflow: hidden;
+}
+
+.main-content {
+    flex: 1;
+    min-width: 0;
+    background-color: #f4efe7;
+    padding: 18px;
+    overflow-y: auto;
+}
