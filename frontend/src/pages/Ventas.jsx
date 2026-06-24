@@ -8,7 +8,11 @@ import {
   FaXmark,
   FaCashRegister,
   FaCartShopping,
+  FaFilePdf,
+  FaPrint,
+  FaTriangleExclamation,
 } from 'react-icons/fa6'
+import { jsPDF } from 'jspdf'
 
 import {
   clientes as clientesIniciales,
@@ -17,6 +21,7 @@ import {
   ventas as ventasIniciales,
 } from '../data/mockData'
 
+import { soloNumeros } from '../utils/validaciones'
 import './Ventas.css'
 
 const ventaVacia = {
@@ -25,13 +30,59 @@ const ventaVacia = {
   metodoPago: 'Efectivo',
   estado: 'Completada',
   productoId: '',
-  cantidad: 1,
+  loteId: '',
+  cantidad: '1',
+  autorizacionVeterinaria: false,
+}
+
+function normalizarStockInicial(stock) {
+  return stock.map((item) => ({
+    ...item,
+    lote: item.lote || `LOTE-${item.id}`,
+    fechaVencimiento: item.fechaVencimiento || '',
+  }))
+}
+
+function obtenerDiasParaVencer(fechaVencimiento) {
+  if (!fechaVencimiento) return null
+
+  const hoy = new Date()
+  hoy.setHours(0, 0, 0, 0)
+
+  const vencimiento = new Date(`${fechaVencimiento}T00:00:00`)
+  vencimiento.setHours(0, 0, 0, 0)
+
+  const diferencia = vencimiento - hoy
+
+  return Math.ceil(diferencia / (1000 * 60 * 60 * 24))
+}
+
+function obtenerEstadoLote(lote) {
+  const diasParaVencer = obtenerDiasParaVencer(lote.fechaVencimiento)
+
+  if (diasParaVencer !== null && diasParaVencer < 0) {
+    return 'Vencido'
+  }
+
+  if (Number(lote.cantidad) <= 0) {
+    return 'Sin stock'
+  }
+
+  if (diasParaVencer !== null && diasParaVencer <= 30) {
+    return 'Próximo a vencer'
+  }
+
+  return 'Disponible'
+}
+
+function loteEstaVencido(lote) {
+  return obtenerEstadoLote(lote) === 'Vencido'
 }
 
 function Ventas() {
   const [clientes] = useState(clientesIniciales)
   const [productos] = useState(productosIniciales)
-  const [stock, setStock] = useState(stockInicial)
+  const [stock, setStock] = useState(normalizarStockInicial(stockInicial))
   const [ventas, setVentas] = useState(
     ventasIniciales.map((venta) => ({
       ...venta,
@@ -61,8 +112,19 @@ function Ventas() {
     return productos.find((producto) => producto.id === productoId)
   }
 
-  const obtenerStock = (productoId) => {
-    return stock.find((item) => item.productoId === productoId)
+  const obtenerLote = (loteId) => {
+    return stock.find((item) => item.id === loteId)
+  }
+
+  const obtenerLotesPorProducto = (productoId) => {
+    return stock.filter((item) => item.productoId === productoId)
+  }
+
+  const obtenerStockDisponibleProducto = (productoId) => {
+    return stock
+      .filter((item) => item.productoId === productoId)
+      .filter((item) => !loteEstaVencido(item))
+      .reduce((total, item) => total + Number(item.cantidad), 0)
   }
 
   const obtenerDetallesVenta = (ventaId) => {
@@ -77,6 +139,32 @@ function Ventas() {
     }
 
     return `${detalles.length} producto/s`
+  }
+
+  const obtenerTipoProducto = (producto) => {
+    return producto?.tipoProducto || producto?.categoria || 'Producto'
+  }
+
+  const obtenerCondicionVenta = (producto) => {
+    if (producto?.condicionVenta) {
+      return producto.condicionVenta
+    }
+
+    if (producto?.categoria === 'Medicamento') {
+      return 'Uso veterinario'
+    }
+
+    if (producto?.categoria === 'Vacuna') {
+      return 'Requiere receta'
+    }
+
+    return 'Venta libre'
+  }
+
+  const productoRequiereAutorizacion = (producto) => {
+    const condicion = obtenerCondicionVenta(producto)
+
+    return condicion === 'Uso veterinario' || condicion === 'Requiere receta'
   }
 
   const totalCarrito = carrito.reduce((total, item) => total + item.subtotal, 0)
@@ -116,25 +204,49 @@ function Ventas() {
   }
 
   const manejarCambio = (e) => {
-    const { name, value } = e.target
+    const { name, value, type, checked } = e.target
+
+    if (name === 'cantidad') {
+      setFormulario({
+        ...formulario,
+        cantidad: soloNumeros(value),
+      })
+
+      return
+    }
+
+    if (name === 'productoId') {
+      setFormulario({
+        ...formulario,
+        productoId: value ? Number(value) : '',
+        loteId: '',
+        autorizacionVeterinaria: false,
+      })
+
+      return
+    }
 
     setFormulario({
       ...formulario,
       [name]:
-        name === 'clienteId' || name === 'productoId' || name === 'cantidad'
-          ? Number(value)
-          : value,
+        name === 'clienteId' || name === 'loteId'
+          ? value
+            ? Number(value)
+            : ''
+          : type === 'checkbox'
+            ? checked
+            : value,
     })
   }
 
   const agregarProducto = () => {
-    if (!formulario.productoId || !formulario.cantidad) {
-      alert('Seleccioná un producto y una cantidad.')
+    if (!formulario.productoId || !formulario.loteId || !formulario.cantidad) {
+      alert('Seleccioná producto, lote y cantidad.')
       return
     }
 
     const producto = obtenerProducto(formulario.productoId)
-    const stockProducto = obtenerStock(formulario.productoId)
+    const lote = obtenerLote(formulario.loteId)
 
     if (!producto) {
       alert('Producto no encontrado.')
@@ -146,8 +258,13 @@ function Ventas() {
       return
     }
 
-    if (!stockProducto) {
-      alert('Este producto no tiene stock cargado.')
+    if (!lote) {
+      alert('Lote no encontrado.')
+      return
+    }
+
+    if (loteEstaVencido(lote)) {
+      alert('No se puede vender este producto porque el lote está vencido.')
       return
     }
 
@@ -158,25 +275,34 @@ function Ventas() {
       return
     }
 
-    const itemExistente = carrito.find(
-      (item) => item.productoId === formulario.productoId
-    )
+    const itemExistente = carrito.find((item) => item.loteId === formulario.loteId)
 
     const cantidadYaAgregada = itemExistente ? itemExistente.cantidad : 0
     const cantidadTotal = cantidadYaAgregada + cantidadSolicitada
 
-    if (cantidadTotal > stockProducto.cantidad) {
-      alert('No hay stock suficiente para ese producto.')
+    if (cantidadTotal > Number(lote.cantidad)) {
+      alert('No hay stock suficiente en este lote.')
+      return
+    }
+
+    if (
+      productoRequiereAutorizacion(producto) &&
+      !formulario.autorizacionVeterinaria
+    ) {
+      alert(
+        'Este producto requiere autorización veterinaria o receta antes de venderse.'
+      )
       return
     }
 
     if (itemExistente) {
       const carritoActualizado = carrito.map((item) => {
-        if (item.productoId === formulario.productoId) {
+        if (item.loteId === formulario.loteId) {
           return {
             ...item,
             cantidad: cantidadTotal,
             subtotal: cantidadTotal * producto.precio,
+            autorizacionVeterinaria: formulario.autorizacionVeterinaria,
           }
         }
 
@@ -187,7 +313,15 @@ function Ventas() {
     } else {
       const nuevoItem = {
         productoId: producto.id,
+        loteId: lote.id,
+        lote: lote.lote,
+        fechaVencimiento: lote.fechaVencimiento || '',
         descripcion: producto.descripcion,
+        categoria: producto.categoria,
+        tipoProducto: obtenerTipoProducto(producto),
+        condicionVenta: obtenerCondicionVenta(producto),
+        requiereAutorizacion: productoRequiereAutorizacion(producto),
+        autorizacionVeterinaria: formulario.autorizacionVeterinaria,
         precioUnitario: producto.precio,
         cantidad: cantidadSolicitada,
         subtotal: producto.precio * cantidadSolicitada,
@@ -199,14 +333,14 @@ function Ventas() {
     setFormulario({
       ...formulario,
       productoId: '',
-      cantidad: 1,
+      loteId: '',
+      cantidad: '1',
+      autorizacionVeterinaria: false,
     })
   }
 
-  const quitarProducto = (productoId) => {
-    const carritoActualizado = carrito.filter(
-      (item) => item.productoId !== productoId
-    )
+  const quitarProducto = (loteId) => {
+    const carritoActualizado = carrito.filter((item) => item.loteId !== loteId)
 
     setCarrito(carritoActualizado)
   }
@@ -224,6 +358,26 @@ function Ventas() {
       return
     }
 
+    const hayLoteVencido = carrito.some((item) => {
+      const lote = obtenerLote(item.loteId)
+
+      return lote && loteEstaVencido(lote)
+    })
+
+    if (hayLoteVencido) {
+      alert('La venta contiene un lote vencido. No se puede registrar.')
+      return
+    }
+
+    const hayProductoRestringidoSinAutorizacion = carrito.some(
+      (item) => item.requiereAutorizacion && !item.autorizacionVeterinaria
+    )
+
+    if (hayProductoRestringidoSinAutorizacion) {
+      alert('Hay productos que requieren autorización veterinaria.')
+      return
+    }
+
     const nuevaVenta = {
       id: Date.now(),
       clienteId: formulario.clienteId,
@@ -237,20 +391,23 @@ function Ventas() {
       id: Date.now() + index,
       ventaId: nuevaVenta.id,
       productoId: item.productoId,
+      loteId: item.loteId,
+      lote: item.lote,
+      fechaVencimiento: item.fechaVencimiento,
+      condicionVenta: item.condicionVenta,
+      autorizacionVeterinaria: item.autorizacionVeterinaria,
       cantidad: item.cantidad,
       precioUnitario: item.precioUnitario,
       subtotal: item.subtotal,
     }))
 
     const stockActualizado = stock.map((itemStock) => {
-      const productoVendido = carrito.find(
-        (item) => item.productoId === itemStock.productoId
-      )
+      const productoVendido = carrito.find((item) => item.loteId === itemStock.id)
 
       if (productoVendido) {
         return {
           ...itemStock,
-          cantidad: itemStock.cantidad - productoVendido.cantidad,
+          cantidad: Number(itemStock.cantidad) - productoVendido.cantidad,
           ultimaActualizacion: formulario.fecha,
         }
       }
@@ -263,6 +420,7 @@ function Ventas() {
     setStock(stockActualizado)
 
     cerrarPanel()
+    setVentaSeleccionada(nuevaVenta)
   }
 
   const eliminarVenta = (id) => {
@@ -273,14 +431,12 @@ function Ventas() {
     const detallesDeVenta = obtenerDetallesVenta(id)
 
     const stockRestaurado = stock.map((itemStock) => {
-      const detalle = detallesDeVenta.find(
-        (item) => item.productoId === itemStock.productoId
-      )
+      const detalle = detallesDeVenta.find((item) => item.loteId === itemStock.id)
 
       if (detalle) {
         return {
           ...itemStock,
-          cantidad: itemStock.cantidad + detalle.cantidad,
+          cantidad: Number(itemStock.cantidad) + Number(detalle.cantidad),
         }
       }
 
@@ -301,12 +457,226 @@ function Ventas() {
     }
   }
 
+  const crearHtmlComprobante = (venta) => {
+    const cliente = obtenerCliente(venta.clienteId)
+    const detalles = obtenerDetallesVenta(venta.id)
+
+    const filasProductos =
+      detalles.length === 0
+        ? `<tr><td colspan="5">Esta venta no tiene detalle cargado.</td></tr>`
+        : detalles
+            .map((detalle) => {
+              const producto = obtenerProducto(detalle.productoId)
+
+              return `
+                <tr>
+                  <td>${producto?.descripcion || 'Producto'}</td>
+                  <td>${detalle.lote || '-'}</td>
+                  <td>${detalle.cantidad}</td>
+                  <td>$${detalle.precioUnitario}</td>
+                  <td>$${detalle.subtotal}</td>
+                </tr>
+              `
+            })
+            .join('')
+
+    return `
+      <html>
+        <head>
+          <title>Comprobante de venta</title>
+          <style>
+            body {
+              font-family: Arial, sans-serif;
+              padding: 30px;
+              color: #1d2944;
+            }
+
+            h1 {
+              margin-bottom: 4px;
+            }
+
+            .datos {
+              margin: 20px 0;
+              line-height: 1.7;
+            }
+
+            table {
+              width: 100%;
+              border-collapse: collapse;
+              margin-top: 20px;
+            }
+
+            th,
+            td {
+              border: 1px solid #d7d7d7;
+              padding: 9px;
+              text-align: left;
+              font-size: 14px;
+            }
+
+            th {
+              background-color: #f4efe7;
+            }
+
+            .total {
+              margin-top: 20px;
+              text-align: right;
+              font-size: 20px;
+              font-weight: bold;
+            }
+
+            .nota {
+              margin-top: 25px;
+              font-size: 13px;
+              color: #555;
+            }
+          </style>
+        </head>
+
+        <body>
+          <h1>Veterinaria Patitas</h1>
+          <p>Comprobante de venta</p>
+
+          <div class="datos">
+            <strong>N° de venta:</strong> ${venta.id}<br />
+            <strong>Fecha:</strong> ${venta.fecha}<br />
+            <strong>Cliente:</strong> ${cliente?.nombre || ''} ${
+              cliente?.apellido || ''
+            }<br />
+            <strong>Método de pago:</strong> ${venta.metodoPago}<br />
+            <strong>Estado:</strong> ${venta.estado}
+          </div>
+
+          <table>
+            <thead>
+              <tr>
+                <th>Producto</th>
+                <th>Lote</th>
+                <th>Cantidad</th>
+                <th>Precio unitario</th>
+                <th>Subtotal</th>
+              </tr>
+            </thead>
+
+            <tbody>
+              ${filasProductos}
+            </tbody>
+          </table>
+
+          <div class="total">
+            Total: ${formatoDinero.format(venta.total)}
+          </div>
+
+          <p class="nota">
+            Comprobante generado desde el sistema Veterinaria Patitas.
+          </p>
+        </body>
+      </html>
+    `
+  }
+
+  const imprimirComprobante = (venta) => {
+    const ventana = window.open('', '_blank')
+
+    if (!ventana) {
+      alert('El navegador bloqueó la ventana de impresión.')
+      return
+    }
+
+    ventana.document.write(crearHtmlComprobante(venta))
+    ventana.document.close()
+    ventana.focus()
+    ventana.print()
+  }
+
+  const descargarPdf = (venta) => {
+    const cliente = obtenerCliente(venta.clienteId)
+    const detalles = obtenerDetallesVenta(venta.id)
+
+    const doc = new jsPDF()
+
+    doc.setFontSize(18)
+    doc.text('Veterinaria Patitas', 14, 18)
+
+    doc.setFontSize(13)
+    doc.text('Comprobante de venta', 14, 28)
+
+    doc.setFontSize(11)
+    doc.text(`N° de venta: ${venta.id}`, 14, 42)
+    doc.text(`Fecha: ${venta.fecha}`, 14, 50)
+    doc.text(
+      `Cliente: ${cliente?.nombre || ''} ${cliente?.apellido || ''}`,
+      14,
+      58
+    )
+    doc.text(`Método de pago: ${venta.metodoPago}`, 14, 66)
+    doc.text(`Estado: ${venta.estado}`, 14, 74)
+
+    let y = 90
+
+    doc.setFontSize(12)
+    doc.text('Productos vendidos', 14, y)
+
+    y += 10
+
+    if (detalles.length === 0) {
+      doc.setFontSize(10)
+      doc.text('Esta venta no tiene detalle cargado.', 14, y)
+      y += 8
+    } else {
+      detalles.forEach((detalle) => {
+        const producto = obtenerProducto(detalle.productoId)
+
+        if (y > 260) {
+          doc.addPage()
+          y = 20
+        }
+
+        doc.setFontSize(10)
+        doc.text(`Producto: ${producto?.descripcion || 'Producto'}`, 14, y)
+        y += 7
+        doc.text(`Lote: ${detalle.lote || '-'}`, 14, y)
+        y += 7
+        doc.text(
+          `Cantidad: ${detalle.cantidad} x ${formatoDinero.format(
+            detalle.precioUnitario
+          )}`,
+          14,
+          y
+        )
+        y += 7
+        doc.text(`Subtotal: ${formatoDinero.format(detalle.subtotal)}`, 14, y)
+        y += 10
+      })
+    }
+
+    doc.setFontSize(14)
+    doc.text(`Total: ${formatoDinero.format(venta.total)}`, 14, y + 8)
+
+    doc.save(`comprobante-venta-${venta.id}.pdf`)
+  }
+
+  const obtenerClaseEstadoLote = (lote) => {
+    const estado = obtenerEstadoLote(lote)
+
+    if (estado === 'Vencido') return 'estado-lote vencido'
+    if (estado === 'Próximo a vencer') return 'estado-lote proximo'
+    if (estado === 'Sin stock') return 'estado-lote sin-stock'
+
+    return 'estado-lote disponible'
+  }
+
+  const productoSeleccionado = obtenerProducto(formulario.productoId)
+  const lotesProductoSeleccionado = formulario.productoId
+    ? obtenerLotesPorProducto(formulario.productoId)
+    : []
+
   return (
     <section className="ventas-page">
       <div className="ventas-header">
         <div>
           <h1>Ventas</h1>
-          <p>Registro de ventas, productos y pagos</p>
+          <p>Registro de ventas, lotes, comprobantes y pagos</p>
         </div>
 
         <button className="btn-nueva-venta" onClick={abrirNuevaVenta}>
@@ -398,6 +768,22 @@ function Ventas() {
                           </button>
 
                           <button
+                            className="btn-accion pdf"
+                            onClick={() => descargarPdf(venta)}
+                            title="Descargar PDF"
+                          >
+                            <FaFilePdf />
+                          </button>
+
+                          <button
+                            className="btn-accion imprimir"
+                            onClick={() => imprimirComprobante(venta)}
+                            title="Imprimir comprobante"
+                          >
+                            <FaPrint />
+                          </button>
+
+                          <button
                             className="btn-accion eliminar"
                             onClick={() => eliminarVenta(venta.id)}
                             title="Eliminar venta"
@@ -431,7 +817,7 @@ function Ventas() {
             {mostrarFormulario ? (
               <>
                 <h2>Nueva Venta</h2>
-                <p>Seleccioná cliente, productos y método de pago</p>
+                <p>Seleccioná cliente, producto, lote y método de pago</p>
 
                 <form className="venta-form" onSubmit={guardarVenta}>
                   <label>Cliente</label>
@@ -470,26 +856,90 @@ function Ventas() {
 
                       {productos
                         .filter((producto) => producto.estado)
-                        .map((producto) => {
-                          const itemStock = obtenerStock(producto.id)
-
-                          return (
-                            <option key={producto.id} value={producto.id}>
-                              {producto.descripcion} - Stock:{' '}
-                              {itemStock?.cantidad ?? 0}
-                            </option>
-                          )
-                        })}
+                        .map((producto) => (
+                          <option key={producto.id} value={producto.id}>
+                            {producto.descripcion} - Stock disponible:{' '}
+                            {obtenerStockDisponibleProducto(producto.id)}
+                          </option>
+                        ))}
                     </select>
+
+                    {productoSeleccionado &&
+                      productoRequiereAutorizacion(productoSeleccionado) && (
+                        <div className="aviso-venta-restringida">
+                          <FaTriangleExclamation />
+                          <div>
+                            <strong>Producto con control de venta</strong>
+                            <span>
+                              {obtenerCondicionVenta(productoSeleccionado)}.
+                              Requiere autorización veterinaria o receta.
+                            </span>
+                          </div>
+                        </div>
+                      )}
+
+                    <label>Lote</label>
+                    <select
+                      name="loteId"
+                      value={formulario.loteId}
+                      onChange={manejarCambio}
+                      disabled={!formulario.productoId}
+                    >
+                      <option value="">Seleccionar lote</option>
+
+                      {lotesProductoSeleccionado.map((lote) => (
+                        <option
+                          key={lote.id}
+                          value={lote.id}
+                          disabled={loteEstaVencido(lote) || lote.cantidad <= 0}
+                        >
+                          {lote.lote} - Stock: {lote.cantidad} - Vence:{' '}
+                          {lote.fechaVencimiento || 'Sin vencimiento'} -{' '}
+                          {obtenerEstadoLote(lote)}
+                        </option>
+                      ))}
+                    </select>
+
+                    {formulario.loteId && (
+                      <div className="lote-seleccionado-info">
+                        <span
+                          className={obtenerClaseEstadoLote(
+                            obtenerLote(formulario.loteId)
+                          )}
+                        >
+                          {obtenerEstadoLote(obtenerLote(formulario.loteId))}
+                        </span>
+
+                        <small>
+                          Lote: {obtenerLote(formulario.loteId)?.lote} |
+                          Vencimiento:{' '}
+                          {obtenerLote(formulario.loteId)?.fechaVencimiento ||
+                            'Sin vencimiento'}
+                        </small>
+                      </div>
+                    )}
 
                     <label>Cantidad</label>
                     <input
-                      type="number"
+                      type="text"
+                      inputMode="numeric"
                       name="cantidad"
                       value={formulario.cantidad}
                       onChange={manejarCambio}
-                      min="1"
                     />
+
+                    {productoSeleccionado &&
+                      productoRequiereAutorizacion(productoSeleccionado) && (
+                        <label className="checkbox-autorizacion">
+                          <input
+                            type="checkbox"
+                            name="autorizacionVeterinaria"
+                            checked={formulario.autorizacionVeterinaria}
+                            onChange={manejarCambio}
+                          />
+                          Venta autorizada por veterinario / receta presentada
+                        </label>
+                      )}
 
                     <button
                       type="button"
@@ -509,13 +959,24 @@ function Ventas() {
                     )}
 
                     {carrito.map((item) => (
-                      <div className="carrito-item" key={item.productoId}>
+                      <div className="carrito-item" key={item.loteId}>
                         <div>
                           <strong>{item.descripcion}</strong>
                           <span>
                             {item.cantidad} x{' '}
                             {formatoDinero.format(item.precioUnitario)}
                           </span>
+
+                          <small>
+                            Lote: {item.lote} | Vence:{' '}
+                            {item.fechaVencimiento || 'Sin vencimiento'}
+                          </small>
+
+                          {item.requiereAutorizacion && (
+                            <small className="autorizacion-ok">
+                              Autorización veterinaria registrada
+                            </small>
+                          )}
                         </div>
 
                         <div className="carrito-item-right">
@@ -523,7 +984,7 @@ function Ventas() {
 
                           <button
                             type="button"
-                            onClick={() => quitarProducto(item.productoId)}
+                            onClick={() => quitarProducto(item.loteId)}
                           >
                             <FaXmark />
                           </button>
@@ -618,12 +1079,43 @@ function Ventas() {
                             {detalle.cantidad} x{' '}
                             {formatoDinero.format(detalle.precioUnitario)}
                           </span>
+
+                          <small>
+                            Lote: {detalle.lote || '-'} | Vence:{' '}
+                            {detalle.fechaVencimiento || 'Sin vencimiento'}
+                          </small>
+
+                          {detalle.autorizacionVeterinaria && (
+                            <small className="autorizacion-ok">
+                              Autorización veterinaria registrada
+                            </small>
+                          )}
                         </div>
 
                         <strong>{formatoDinero.format(detalle.subtotal)}</strong>
                       </div>
                     )
                   })}
+                </div>
+
+                <div className="botones-comprobante">
+                  <button
+                    type="button"
+                    className="btn-descargar-pdf"
+                    onClick={() => descargarPdf(ventaSeleccionada)}
+                  >
+                    <FaFilePdf />
+                    Descargar PDF
+                  </button>
+
+                  <button
+                    type="button"
+                    className="btn-imprimir"
+                    onClick={() => imprimirComprobante(ventaSeleccionada)}
+                  >
+                    <FaPrint />
+                    Imprimir
+                  </button>
                 </div>
               </>
             )}

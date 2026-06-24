@@ -30,22 +30,78 @@
     border: none;
     border-radius: 8px;
     padding: 0 18px;
-
     background-color: #2f8c80;
     color: white;
-
     font-size: 15px;
     font-weight: 600;
-
     display: flex;
     align-items: center;
     gap: 9px;
-
     cursor: pointer;
 }
 
 .btn-nuevo-stock:hover {
     background-color: #28776d;
+}
+
+.alerta-stock {
+    width: 100%;
+    background-color: #fff7ed;
+    border-left: 5px solid #d97706;
+    border-radius: 12px;
+    padding: 16px;
+    margin-bottom: 18px;
+    display: grid;
+    grid-template-columns: 46px 1fr 38px;
+    gap: 14px;
+    align-items: center;
+    box-shadow: 0px 8px 18px rgba(0, 0, 0, 0.10);
+}
+
+.alerta-stock-icono {
+    width: 46px;
+    height: 46px;
+    border-radius: 50%;
+    background-color: #fed7aa;
+    color: #d97706;
+    display: flex;
+    align-items: center;
+    justify-content: center;
+    font-size: 22px;
+}
+
+.alerta-stock-contenido strong {
+    display: block;
+    color: #1d2944;
+    font-size: 16px;
+    font-weight: 800;
+    margin-bottom: 3px;
+}
+
+.alerta-stock-contenido p {
+    margin: 0 0 4px;
+    color: #1d2944;
+    font-size: 14px;
+    font-weight: 500;
+}
+
+.alerta-stock-contenido small {
+    color: #7c849d;
+    font-size: 13px;
+    font-weight: 500;
+}
+
+.btn-cerrar-alerta-stock {
+    width: 34px;
+    height: 34px;
+    border: none;
+    border-radius: 8px;
+    background-color: #b42318;
+    color: white;
+    display: flex;
+    align-items: center;
+    justify-content: center;
+    cursor: pointer;
 }
 
 .stock-content {
@@ -78,25 +134,19 @@
 .stock-search {
     flex: 1;
     height: 42px;
-
     border: 1px solid #d7d7d7;
     border-radius: 8px;
-
     padding: 0 13px;
-
     display: flex;
     align-items: center;
     gap: 10px;
-
     color: #7c849d;
 }
 
 .stock-search input {
     width: 100%;
-
     border: none;
     outline: none;
-
     color: #1d2944;
     font-size: 14px;
     font-family: 'Poppins', sans-serif;
@@ -128,7 +178,6 @@
     font-size: 14px;
     font-weight: 600;
     text-align: left;
-
     padding: 12px 8px;
     border-bottom: 1px solid #eeeeee;
 }
@@ -137,10 +186,8 @@
     color: #1d2944;
     font-size: 14px;
     font-weight: 400;
-
     padding: 14px 8px;
     border-bottom: 1px solid #eeeeee;
-
     vertical-align: middle;
 }
 
@@ -154,16 +201,12 @@
     width: 38px;
     height: 38px;
     min-width: 38px;
-
     border-radius: 50%;
-
     background-color: #dcefe9;
     color: #2f8c80;
-
     display: flex;
     align-items: center;
     justify-content: center;
-
     font-size: 18px;
 }
 
@@ -186,14 +229,12 @@
     display: inline-flex;
     align-items: center;
     justify-content: center;
-
-    min-width: 92px;
-    height: 28px;
-
+    min-width: 95px;
+    min-height: 28px;
     border-radius: 8px;
-
     font-size: 13px;
     font-weight: 700;
+    padding: 6px 10px;
 }
 
 .estado-stock.correcto {
@@ -202,13 +243,25 @@
 }
 
 .estado-stock.bajo {
-    background-color: #fff3cd;
+    background-color: #fde68a;
     color: #d97706;
 }
 
 .estado-stock.sin-stock {
     background-color: #ffd7d7;
     color: #b42318;
+}
+
+.estado-stock.proximo {
+    background-color: #fff7ed;
+    color: #d97706;
+    border: 1px solid #d97706;
+}
+
+.estado-stock.vencido {
+    background-color: #ffd7d7;
+    color: #b42318;
+    border: 1px solid #b42318;
 }
 
 .stock-page .acciones {
@@ -220,16 +273,12 @@
 .stock-page .btn-accion {
     width: 32px;
     height: 32px;
-
     border: none;
     border-radius: 7px;
-
     color: white;
-
     display: flex;
     justify-content: center;
     align-items: center;
-
     cursor: pointer;
 }
 
@@ -260,13 +309,10 @@
     position: absolute;
     top: 14px;
     right: 14px;
-
     border: none;
     background: transparent;
-
     color: #7c849d;
     font-size: 20px;
-
     cursor: pointer;
 }
 
@@ -297,53 +343,77 @@
 }
 
 .stock-form input,
-.stock-form select {
+.stock-form select,
+.stock-form textarea {
     height: 40px;
-
     border: 1px solid #d7d7d7;
     border-radius: 8px;
-
     padding: 0 12px;
     margin-bottom: 14px;
-
     outline: none;
-
     color: #1d2944;
     font-size: 14px;
     font-family: 'Poppins', sans-serif;
-
     background-color: white;
 }
 
 .stock-form input:focus,
-.stock-form select:focus {
+.stock-form select:focus,
+.stock-form textarea:focus {
     border-color: #2f8c80;
 }
 
-.stock-form select:disabled {
-    background-color: #f2f2f2;
+.stock-form input::placeholder {
+    color: #9fa8b8;
+}
+
+.aviso-vencimiento-form {
+    background-color: #fff7ed;
+    border-left: 4px solid #d97706;
+    border-radius: 10px;
+    padding: 13px;
+    margin-bottom: 16px;
+    display: flex;
+    align-items: flex-start;
+    gap: 12px;
+    color: #d97706;
+}
+
+.aviso-vencimiento-form svg {
+    margin-top: 3px;
+    font-size: 20px;
+    min-width: 20px;
+}
+
+.aviso-vencimiento-form strong {
+    display: block;
+    color: #1d2944;
+    font-size: 14px;
+    font-weight: 800;
+    margin-bottom: 3px;
+}
+
+.aviso-vencimiento-form span {
+    display: block;
     color: #7c849d;
-    cursor: not-allowed;
+    font-size: 13px;
+    font-weight: 500;
+    line-height: 1.35;
 }
 
 .stock-page .btn-guardar,
 .stock-page .btn-editar-detalle {
     height: 42px;
-
     border: none;
     border-radius: 8px;
-
     background-color: #2f8c80;
     color: white;
-
     font-size: 15px;
     font-weight: 600;
-
     display: flex;
     justify-content: center;
     align-items: center;
     gap: 9px;
-
     cursor: pointer;
 }
 
@@ -356,7 +426,6 @@
     display: flex;
     flex-direction: column;
     gap: 16px;
-
     margin-bottom: 22px;
 }
 
@@ -382,6 +451,17 @@
 @media (max-width: 1100px) {
     .stock-content {
         grid-template-columns: 1fr;
+    }
+}
+
+@media (max-width: 900px) {
+    .alerta-stock {
+        grid-template-columns: 1fr;
+    }
+
+    .alerta-stock-icono {
+        width: 42px;
+        height: 42px;
     }
 }
 
