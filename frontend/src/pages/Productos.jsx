@@ -8,14 +8,19 @@ import {
   FaFloppyDisk,
   FaXmark,
   FaBoxOpen,
+  FaTriangleExclamation,
 } from 'react-icons/fa6'
 
 import { productos as productosIniciales } from '../data/mockData'
+import { soloNumerosDecimales } from '../utils/validaciones'
 import './Productos.css'
 
 const productoVacio = {
   descripcion: '',
   categoria: '',
+  tipoProducto: 'Producto',
+  condicionVenta: 'Venta libre',
+  laboratorio: '',
   precio: '',
   estado: true,
 }
@@ -34,10 +39,25 @@ function Productos() {
     maximumFractionDigits: 0,
   })
 
+  const obtenerTipoProducto = (producto) => {
+    return producto.tipoProducto || producto.categoria || 'Producto'
+  }
+
+  const obtenerCondicionVenta = (producto) => {
+    return producto.condicionVenta || 'Venta libre'
+  }
+
+  const obtenerLaboratorio = (producto) => {
+    return producto.laboratorio || 'Sin especificar'
+  }
+
   const productosFiltrados = productos.filter((producto) => {
     const texto = `
       ${producto.descripcion}
       ${producto.categoria}
+      ${obtenerTipoProducto(producto)}
+      ${obtenerCondicionVenta(producto)}
+      ${obtenerLaboratorio(producto)}
       ${producto.precio}
       ${producto.estado ? 'activo' : 'inactivo'}
     `.toLowerCase()
@@ -62,7 +82,10 @@ function Productos() {
     setFormulario({
       descripcion: producto.descripcion,
       categoria: producto.categoria,
-      precio: producto.precio,
+      tipoProducto: producto.tipoProducto || producto.categoria || 'Producto',
+      condicionVenta: producto.condicionVenta || 'Venta libre',
+      laboratorio: producto.laboratorio || '',
+      precio: String(producto.precio),
       estado: producto.estado,
     })
 
@@ -81,17 +104,71 @@ function Productos() {
   const manejarCambio = (e) => {
     const { name, value, type, checked } = e.target
 
+    let nuevoValor = value
+
+    if (name === 'precio') {
+      nuevoValor = soloNumerosDecimales(value)
+    }
+
+    if (name === 'tipoProducto') {
+      let nuevaCategoria = formulario.categoria
+      let nuevaCondicion = formulario.condicionVenta
+
+      if (value === 'Producto') {
+        nuevaCondicion = 'Venta libre'
+      }
+
+      if (value === 'Medicamento') {
+        nuevaCategoria = 'Medicamento'
+        nuevaCondicion = 'Uso veterinario'
+      }
+
+      if (value === 'Vacuna') {
+        nuevaCategoria = 'Vacuna'
+        nuevaCondicion = 'Requiere receta'
+      }
+
+      setFormulario({
+        ...formulario,
+        tipoProducto: value,
+        categoria: nuevaCategoria,
+        condicionVenta: nuevaCondicion,
+      })
+
+      return
+    }
+
     setFormulario({
       ...formulario,
-      [name]: type === 'checkbox' ? checked : value,
+      [name]: type === 'checkbox' ? checked : nuevoValor,
     })
   }
 
   const guardarProducto = (e) => {
     e.preventDefault()
 
-    if (!formulario.descripcion || !formulario.categoria || !formulario.precio) {
-      alert('Completá descripción, categoría y precio.')
+    if (
+      !formulario.descripcion ||
+      !formulario.categoria ||
+      !formulario.tipoProducto ||
+      !formulario.condicionVenta ||
+      !formulario.precio
+    ) {
+      alert('Completá descripción, categoría, tipo, condición de venta y precio.')
+      return
+    }
+
+    if (Number(formulario.precio) <= 0) {
+      alert('El precio debe ser mayor a cero.')
+      return
+    }
+
+    if (
+      (formulario.tipoProducto === 'Medicamento' ||
+        formulario.tipoProducto === 'Vacuna') &&
+      !formulario.laboratorio
+    ) {
+      alert('Para medicamentos y vacunas se debe cargar laboratorio o marca.')
       return
     }
 
@@ -102,6 +179,9 @@ function Productos() {
             id: productoSeleccionado.id,
             descripcion: formulario.descripcion,
             categoria: formulario.categoria,
+            tipoProducto: formulario.tipoProducto,
+            condicionVenta: formulario.condicionVenta,
+            laboratorio: formulario.laboratorio,
             precio: Number(formulario.precio),
             estado: formulario.estado,
           }
@@ -116,6 +196,9 @@ function Productos() {
         id: Date.now(),
         descripcion: formulario.descripcion,
         categoria: formulario.categoria,
+        tipoProducto: formulario.tipoProducto,
+        condicionVenta: formulario.condicionVenta,
+        laboratorio: formulario.laboratorio,
         precio: Number(formulario.precio),
         estado: formulario.estado,
       }
@@ -142,12 +225,26 @@ function Productos() {
     }
   }
 
+  const obtenerClaseCondicion = (producto) => {
+    const condicion = obtenerCondicionVenta(producto)
+
+    if (condicion === 'Requiere receta') {
+      return 'condicion-producto receta'
+    }
+
+    if (condicion === 'Uso veterinario') {
+      return 'condicion-producto veterinario'
+    }
+
+    return 'condicion-producto libre'
+  }
+
   return (
     <section className="productos-page">
       <div className="productos-header">
         <div>
           <h1>Productos</h1>
-          <p>Gestión de alimentos, medicamentos, higiene y accesorios</p>
+          <p>Gestión de alimentos, medicamentos, vacunas, higiene y accesorios</p>
         </div>
 
         <button className="btn-nuevo-producto" onClick={abrirNuevoProducto}>
@@ -164,7 +261,7 @@ function Productos() {
 
               <input
                 type="text"
-                placeholder="Buscar por descripción, categoría, precio o estado"
+                placeholder="Buscar por descripción, categoría, tipo, condición o estado"
                 value={busqueda}
                 onChange={(e) => setBusqueda(e.target.value)}
               />
@@ -181,6 +278,8 @@ function Productos() {
                 <tr>
                   <th>Producto</th>
                   <th>Categoría</th>
+                  <th>Tipo</th>
+                  <th>Condición</th>
                   <th>Precio</th>
                   <th>Estado</th>
                   <th>Acciones</th>
@@ -198,12 +297,27 @@ function Productos() {
 
                         <div>
                           <strong>{producto.descripcion}</strong>
-                          <small>ID producto: {producto.id}</small>
+                          <small>
+                            {obtenerLaboratorio(producto)} | ID producto:{' '}
+                            {producto.id}
+                          </small>
                         </div>
                       </div>
                     </td>
 
                     <td>{producto.categoria}</td>
+
+                    <td>
+                      <span className="tipo-producto">
+                        {obtenerTipoProducto(producto)}
+                      </span>
+                    </td>
+
+                    <td>
+                      <span className={obtenerClaseCondicion(producto)}>
+                        {obtenerCondicionVenta(producto)}
+                      </span>
+                    </td>
 
                     <td>{formatoDinero.format(producto.precio)}</td>
 
@@ -251,7 +365,7 @@ function Productos() {
 
                 {productosFiltrados.length === 0 && (
                   <tr>
-                    <td colSpan="5" className="sin-resultados">
+                    <td colSpan="7" className="sin-resultados">
                       No se encontraron productos.
                     </td>
                   </tr>
@@ -295,19 +409,66 @@ function Productos() {
                     <option value="">Seleccionar categoría</option>
                     <option value="Alimento">Alimento</option>
                     <option value="Medicamento">Medicamento</option>
+                    <option value="Vacuna">Vacuna</option>
                     <option value="Higiene">Higiene</option>
                     <option value="Accesorio">Accesorio</option>
                     <option value="Insumo">Insumo</option>
                     <option value="Otro">Otro</option>
                   </select>
 
+                  <label>Tipo de producto</label>
+                  <select
+                    name="tipoProducto"
+                    value={formulario.tipoProducto}
+                    onChange={manejarCambio}
+                  >
+                    <option value="Producto">Producto</option>
+                    <option value="Medicamento">Medicamento</option>
+                    <option value="Vacuna">Vacuna</option>
+                  </select>
+
+                  <label>Condición de venta</label>
+                  <select
+                    name="condicionVenta"
+                    value={formulario.condicionVenta}
+                    onChange={manejarCambio}
+                  >
+                    <option value="Venta libre">Venta libre</option>
+                    <option value="Uso veterinario">Uso veterinario</option>
+                    <option value="Requiere receta">Requiere receta</option>
+                  </select>
+
+                  <label>Laboratorio / Marca</label>
+                  <input
+                    type="text"
+                    name="laboratorio"
+                    value={formulario.laboratorio}
+                    onChange={manejarCambio}
+                    placeholder="Ej: LabVet, VitalCan, Holliday"
+                  />
+
                   <label>Precio</label>
                   <input
-                    type="number"
+                    type="text"
+                    inputMode="decimal"
                     name="precio"
                     value={formulario.precio}
                     onChange={manejarCambio}
                   />
+
+                  {(formulario.condicionVenta === 'Requiere receta' ||
+                    formulario.condicionVenta === 'Uso veterinario') && (
+                    <div className="aviso-producto-restringido">
+                      <FaTriangleExclamation />
+                      <div>
+                        <strong>Producto con control de venta</strong>
+                        <span>
+                          En ventas se deberá controlar autorización o indicación
+                          veterinaria.
+                        </span>
+                      </div>
+                    </div>
+                  )}
 
                   <label className="checkbox-producto">
                     <input
@@ -342,6 +503,23 @@ function Productos() {
                   </div>
 
                   <div>
+                    <span>Tipo</span>
+                    <strong>{obtenerTipoProducto(productoSeleccionado)}</strong>
+                  </div>
+
+                  <div>
+                    <span>Condición de venta</span>
+                    <strong>
+                      {obtenerCondicionVenta(productoSeleccionado)}
+                    </strong>
+                  </div>
+
+                  <div>
+                    <span>Laboratorio / Marca</span>
+                    <strong>{obtenerLaboratorio(productoSeleccionado)}</strong>
+                  </div>
+
+                  <div>
                     <span>Precio</span>
                     <strong>
                       {formatoDinero.format(productoSeleccionado.precio)}
@@ -355,6 +533,21 @@ function Productos() {
                     </strong>
                   </div>
                 </div>
+
+                {(obtenerCondicionVenta(productoSeleccionado) ===
+                  'Requiere receta' ||
+                  obtenerCondicionVenta(productoSeleccionado) ===
+                    'Uso veterinario') && (
+                  <div className="aviso-producto-restringido">
+                    <FaTriangleExclamation />
+                    <div>
+                      <strong>Producto con control de venta</strong>
+                      <span>
+                        Este producto debe controlarse antes de venderse.
+                      </span>
+                    </div>
+                  </div>
+                )}
 
                 <button
                   className="btn-editar-detalle"

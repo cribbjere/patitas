@@ -30,17 +30,13 @@
     border: none;
     border-radius: 8px;
     padding: 0 18px;
-
     background-color: #2f8c80;
     color: white;
-
     font-size: 15px;
     font-weight: 600;
-
     display: flex;
     align-items: center;
     gap: 9px;
-
     cursor: pointer;
 }
 
@@ -78,25 +74,19 @@
 .productos-search {
     flex: 1;
     height: 42px;
-
     border: 1px solid #d7d7d7;
     border-radius: 8px;
-
     padding: 0 13px;
-
     display: flex;
     align-items: center;
     gap: 10px;
-
     color: #7c849d;
 }
 
 .productos-search input {
     width: 100%;
-
     border: none;
     outline: none;
-
     color: #1d2944;
     font-size: 14px;
     font-family: 'Poppins', sans-serif;
@@ -128,7 +118,6 @@
     font-size: 14px;
     font-weight: 600;
     text-align: left;
-
     padding: 12px 8px;
     border-bottom: 1px solid #eeeeee;
 }
@@ -137,10 +126,8 @@
     color: #1d2944;
     font-size: 14px;
     font-weight: 400;
-
     padding: 14px 8px;
     border-bottom: 1px solid #eeeeee;
-
     vertical-align: middle;
 }
 
@@ -154,16 +141,12 @@
     width: 38px;
     height: 38px;
     min-width: 38px;
-
     border-radius: 50%;
-
     background-color: #dcefe9;
     color: #2f8c80;
-
     display: flex;
     align-items: center;
     justify-content: center;
-
     font-size: 18px;
 }
 
@@ -182,16 +165,54 @@
     font-weight: 400;
 }
 
+.tipo-producto {
+    display: inline-flex;
+    align-items: center;
+    justify-content: center;
+    min-width: 80px;
+    height: 28px;
+    border-radius: 8px;
+    background-color: #dcefe9;
+    color: #2f8c80;
+    font-size: 13px;
+    font-weight: 700;
+    padding: 0 10px;
+}
+
+.condicion-producto {
+    display: inline-flex;
+    align-items: center;
+    justify-content: center;
+    min-width: 100px;
+    min-height: 28px;
+    border-radius: 8px;
+    font-size: 13px;
+    font-weight: 700;
+    padding: 6px 10px;
+}
+
+.condicion-producto.libre {
+    background-color: #cde8bd;
+    color: #2f8c80;
+}
+
+.condicion-producto.veterinario {
+    background-color: #fde68a;
+    color: #d97706;
+}
+
+.condicion-producto.receta {
+    background-color: #ffd7d7;
+    color: #b42318;
+}
+
 .estado-producto {
     display: inline-flex;
     align-items: center;
     justify-content: center;
-
     min-width: 78px;
     height: 28px;
-
     border-radius: 8px;
-
     font-size: 13px;
     font-weight: 700;
 }
@@ -215,16 +236,12 @@
 .productos-page .btn-accion {
     width: 32px;
     height: 32px;
-
     border: none;
     border-radius: 7px;
-
     color: white;
-
     display: flex;
     justify-content: center;
     align-items: center;
-
     cursor: pointer;
 }
 
@@ -255,13 +272,10 @@
     position: absolute;
     top: 14px;
     right: 14px;
-
     border: none;
     background: transparent;
-
     color: #7c849d;
     font-size: 20px;
-
     cursor: pointer;
 }
 
@@ -292,34 +306,34 @@
 }
 
 .producto-form input,
-.producto-form select {
+.producto-form select,
+.producto-form textarea {
     height: 40px;
-
     border: 1px solid #d7d7d7;
     border-radius: 8px;
-
     padding: 0 12px;
     margin-bottom: 14px;
-
     outline: none;
-
     color: #1d2944;
     font-size: 14px;
     font-family: 'Poppins', sans-serif;
-
     background-color: white;
 }
 
 .producto-form input:focus,
-.producto-form select:focus {
+.producto-form select:focus,
+.producto-form textarea:focus {
     border-color: #2f8c80;
+}
+
+.producto-form input::placeholder {
+    color: #9fa8b8;
 }
 
 .checkbox-producto {
     display: flex;
     align-items: center;
     gap: 9px;
-
     margin: 4px 0 18px;
 }
 
@@ -329,24 +343,53 @@
     margin: 0;
 }
 
+.aviso-producto-restringido {
+    background-color: #fff7ed;
+    border-left: 4px solid #d97706;
+    border-radius: 10px;
+    padding: 13px;
+    margin-bottom: 16px;
+    display: flex;
+    align-items: flex-start;
+    gap: 12px;
+    color: #d97706;
+}
+
+.aviso-producto-restringido svg {
+    margin-top: 3px;
+    font-size: 20px;
+    min-width: 20px;
+}
+
+.aviso-producto-restringido strong {
+    display: block;
+    color: #1d2944;
+    font-size: 14px;
+    font-weight: 800;
+    margin-bottom: 3px;
+}
+
+.aviso-producto-restringido span {
+    display: block;
+    color: #7c849d;
+    font-size: 13px;
+    font-weight: 500;
+    line-height: 1.35;
+}
+
 .productos-page .btn-guardar,
 .productos-page .btn-editar-detalle {
     height: 42px;
-
     border: none;
     border-radius: 8px;
-
     background-color: #2f8c80;
     color: white;
-
     font-size: 15px;
     font-weight: 600;
-
     display: flex;
     justify-content: center;
     align-items: center;
     gap: 9px;
-
     cursor: pointer;
 }
 
@@ -359,7 +402,6 @@
     display: flex;
     flex-direction: column;
     gap: 16px;
-
     margin-bottom: 22px;
 }
 

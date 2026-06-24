@@ -1,4 +1,5 @@
-import { useState } from 'react'
+import { crearAlertaSistema } from '../utils/alertasSistema'
+import { useEffect, useState } from 'react'
 import {
   FaMagnifyingGlass,
   FaPlus,
@@ -8,6 +9,9 @@ import {
   FaFloppyDisk,
   FaXmark,
   FaCalendarDays,
+  FaPhone,
+  FaWhatsapp,
+  FaTriangleExclamation,
 } from 'react-icons/fa6'
 
 import {
@@ -47,6 +51,7 @@ function Turnos() {
   const [turnoSeleccionado, setTurnoSeleccionado] = useState(null)
   const [modoEdicion, setModoEdicion] = useState(false)
   const [formulario, setFormulario] = useState(turnoVacio)
+  const [alertaSeguimiento, setAlertaSeguimiento] = useState(null)
 
   const obtenerMascota = (mascotaId) => {
     return mascotas.find((mascota) => mascota.id === mascotaId)
@@ -58,6 +63,81 @@ function Turnos() {
     if (!mascota) return null
 
     return clientes.find((cliente) => cliente.id === mascota.clienteId)
+  }
+
+  const crearAlertaSeguimiento = (turno, tipo) => {
+    const mascota = obtenerMascota(turno.mascotaId)
+    const cliente = obtenerClienteDeMascota(turno.mascotaId)
+
+    let mensaje = ''
+
+    if (tipo === 'Cancelado') {
+      mensaje =
+        'El turno fue cancelado. Se recomienda contactar al cliente y ofrecer otro horario.'
+    }
+
+    if (tipo === 'Ausente') {
+      mensaje =
+        'El cliente no asistió al turno. Se recomienda llamar o enviar un mensaje para reprogramar.'
+    }
+
+    if (tipo === 'Vacunación pendiente') {
+      mensaje =
+        'La vacunación no fue realizada. Se recomienda contactar al cliente para coordinar una nueva fecha.'
+    }
+
+    setAlertaSeguimiento({
+      turno,
+      mascota,
+      cliente,
+      tipo,
+      mensaje,
+    })
+    crearAlertaSistema({
+  titulo: tipo,
+  mensaje,
+  origen: 'Turnos',
+  cliente: `${cliente?.nombre || ''} ${cliente?.apellido || ''}`.trim(),
+  telefono: cliente?.telefono || '',
+  mascota: mascota?.nombre || '',
+})
+  }
+
+  const cerrarAlertaSeguimiento = () => {
+    setAlertaSeguimiento(null)
+  }
+
+  const armarTelefono = (telefono) => {
+    if (!telefono) return ''
+
+    return telefono.replace(/\D/g, '')
+  }
+
+  const llamarCliente = (cliente) => {
+    const telefono = armarTelefono(cliente?.telefono)
+
+    if (!telefono) {
+      alert('El cliente no tiene teléfono cargado.')
+      return
+    }
+
+    window.location.href = `tel:${telefono}`
+  }
+
+  const enviarWhatsapp = (cliente, mascota, motivo) => {
+    const telefono = armarTelefono(cliente?.telefono)
+
+    if (!telefono) {
+      alert('El cliente no tiene teléfono cargado.')
+      return
+    }
+
+    const mensaje = `Hola ${cliente.nombre}, te contactamos de Veterinaria Patitas por el turno de ${mascota?.nombre}. Queríamos coordinar una nueva fecha para ${motivo}.`
+
+    window.open(
+      `https://wa.me/54${telefono}?text=${encodeURIComponent(mensaje)}`,
+      '_blank'
+    )
   }
 
   const turnosFiltrados = turnos.filter((turno) => {
@@ -106,6 +186,13 @@ function Turnos() {
     setMostrarFormulario(true)
   }
 
+  const reprogramarDesdeAlerta = () => {
+    if (!alertaSeguimiento?.turno) return
+
+    abrirEditarTurno(alertaSeguimiento.turno)
+    cerrarAlertaSeguimiento()
+  }
+
   const cerrarPanel = () => {
     setFormulario(turnoVacio)
     setTurnoSeleccionado(null)
@@ -136,11 +223,20 @@ function Turnos() {
       return
     }
 
+    if (formulario.horaFin <= formulario.horaInicio) {
+      alert('La hora de fin debe ser posterior a la hora de inicio.')
+      return
+    }
+
     const fechaInicio = `${formulario.fecha}T${formulario.horaInicio}:00`
     const fechaFin = `${formulario.fecha}T${formulario.horaFin}:00`
 
     const existeTurnoSuperpuesto = turnos.some((turno) => {
       if (modoEdicion && turno.id === turnoSeleccionado.id) {
+        return false
+      }
+
+      if (turno.estado === 'Cancelado' || turno.estado === 'Ausente') {
         return false
       }
 
@@ -180,6 +276,25 @@ function Turnos() {
       })
 
       setTurnos(turnosActualizados)
+
+      const turnoActualizado = turnosActualizados.find(
+        (turno) => turno.id === turnoSeleccionado.id
+      )
+
+      if (formulario.estado === 'Cancelado') {
+        crearAlertaSeguimiento(turnoActualizado, 'Cancelado')
+      }
+
+      if (formulario.estado === 'Ausente') {
+        crearAlertaSeguimiento(turnoActualizado, 'Ausente')
+      }
+
+      if (
+        formulario.estado !== 'Realizado' &&
+        formulario.motivo === 'Vacunación'
+      ) {
+        crearAlertaSeguimiento(turnoActualizado, 'Vacunación pendiente')
+      }
     } else {
       const nuevoTurno = {
         id: Date.now(),
@@ -197,16 +312,30 @@ function Turnos() {
     cerrarPanel()
   }
 
-  const cancelarTurno = (id) => {
-    const confirmar = window.confirm('¿Seguro que querés cancelar este turno?')
+  const cambiarEstadoTurno = (id, nuevoEstado) => {
+    const turnoEncontrado = turnos.find((turno) => turno.id === id)
 
-    if (!confirmar) return
+    if (!turnoEncontrado) return
+
+    if (nuevoEstado === 'Cancelado') {
+      const confirmar = window.confirm('¿Seguro que querés cancelar este turno?')
+
+      if (!confirmar) return
+    }
+
+    if (nuevoEstado === 'Ausente') {
+      const confirmar = window.confirm(
+        '¿Seguro que querés marcar este turno como ausente?'
+      )
+
+      if (!confirmar) return
+    }
 
     const turnosActualizados = turnos.map((turno) => {
       if (turno.id === id) {
         return {
           ...turno,
-          estado: 'Cancelado',
+          estado: nuevoEstado,
         }
       }
 
@@ -215,12 +344,34 @@ function Turnos() {
 
     setTurnos(turnosActualizados)
 
+    const turnoActualizado = turnosActualizados.find((turno) => turno.id === id)
+
     if (turnoSeleccionado?.id === id) {
-      setTurnoSeleccionado({
-        ...turnoSeleccionado,
-        estado: 'Cancelado',
-      })
+      setTurnoSeleccionado(turnoActualizado)
     }
+
+    if (nuevoEstado === 'Cancelado') {
+      crearAlertaSeguimiento(turnoActualizado, 'Cancelado')
+    }
+
+    if (nuevoEstado === 'Ausente') {
+      crearAlertaSeguimiento(turnoActualizado, 'Ausente')
+    }
+
+    if (
+      nuevoEstado !== 'Realizado' &&
+      turnoActualizado.motivo === 'Vacunación'
+    ) {
+      crearAlertaSeguimiento(turnoActualizado, 'Vacunación pendiente')
+    }
+  }
+
+  const cancelarTurno = (id) => {
+    cambiarEstadoTurno(id, 'Cancelado')
+  }
+
+  const marcarAusente = (id) => {
+    cambiarEstadoTurno(id, 'Ausente')
   }
 
   const eliminarTurno = (id) => {
@@ -237,6 +388,89 @@ function Turnos() {
     }
   }
 
+  const obtenerClaseEstado = (estado) => {
+    if (estado === 'Cancelado') return 'estado-turno cancelado'
+    if (estado === 'Realizado') return 'estado-turno realizado'
+    if (estado === 'Ausente') return 'estado-turno ausente'
+
+    return 'estado-turno programado'
+    useEffect(() => {
+  const revisarTurnosVencidos = () => {
+    const ahora = new Date()
+
+    setTurnos((turnosActuales) => {
+      let huboCambios = false
+
+      const turnosActualizados = turnosActuales.map((turno) => {
+        const estadoActual = turno.estado || 'Programado'
+        const fechaFinTurno = new Date(turno.fechaFin)
+
+        const turnoYaPaso = fechaFinTurno < ahora
+        const sigueProgramado = estadoActual === 'Programado'
+
+        if (!turnoYaPaso || !sigueProgramado) {
+          return turno
+        }
+
+        huboCambios = true
+
+        const mascota = mascotas.find(
+          (mascota) => mascota.id === turno.mascotaId
+        )
+
+        const cliente = clientes.find(
+          (cliente) => cliente.id === mascota?.clienteId
+        )
+
+        const mensaje =
+          'El horario del turno ya pasó y el turno seguía como programado. Se recomienda contactar al cliente para reprogramar.'
+
+        crearAlertaSistema({
+          clave: `turno-vencido-${turno.id}`,
+          titulo: 'Turno vencido',
+          mensaje,
+          origen: 'Turnos',
+          cliente: `${cliente?.nombre || ''} ${cliente?.apellido || ''}`.trim(),
+          telefono: cliente?.telefono || '',
+          mascota: mascota?.nombre || '',
+        })
+
+        setAlertaSeguimiento({
+          turno: {
+            ...turno,
+            estado: 'Ausente',
+          },
+          mascota,
+          cliente,
+          tipo: 'Turno vencido',
+          mensaje,
+        })
+
+        return {
+          ...turno,
+          estado: 'Ausente',
+          observaciones:
+            turno.observaciones ||
+            'Marcado automáticamente como ausente porque pasó el horario del turno.',
+        }
+      })
+
+      if (!huboCambios) {
+        return turnosActuales
+      }
+
+      return turnosActualizados
+    })
+  }
+
+  revisarTurnosVencidos()
+
+  const intervalo = setInterval(revisarTurnosVencidos, 60000)
+
+  return () => clearInterval(intervalo)
+}, [clientes, mascotas])
+  }
+
   return (
     <section className="turnos-page">
       <div className="turnos-header">
@@ -250,6 +484,68 @@ function Turnos() {
           Nuevo Turno
         </button>
       </div>
+
+      {alertaSeguimiento && (
+        <div className="alerta-seguimiento-turno">
+          <div className="alerta-icono">
+            <FaTriangleExclamation />
+          </div>
+
+          <div className="alerta-contenido">
+            <strong>{alertaSeguimiento.tipo}</strong>
+            <p>{alertaSeguimiento.mensaje}</p>
+
+            <small>
+              Cliente: {alertaSeguimiento.cliente?.nombre}{' '}
+              {alertaSeguimiento.cliente?.apellido} | Mascota:{' '}
+              {alertaSeguimiento.mascota?.nombre}
+            </small>
+          </div>
+
+          <div className="alerta-acciones">
+            <button
+              type="button"
+              className="btn-alerta llamar"
+              onClick={() => llamarCliente(alertaSeguimiento.cliente)}
+            >
+              <FaPhone />
+              Llamar
+            </button>
+
+            <button
+              type="button"
+              className="btn-alerta whatsapp"
+              onClick={() =>
+                enviarWhatsapp(
+                  alertaSeguimiento.cliente,
+                  alertaSeguimiento.mascota,
+                  alertaSeguimiento.turno.motivo
+                )
+              }
+            >
+              <FaWhatsapp />
+              WhatsApp
+            </button>
+
+            <button
+              type="button"
+              className="btn-alerta reprogramar"
+              onClick={reprogramarDesdeAlerta}
+            >
+              <FaPen />
+              Reprogramar
+            </button>
+
+            <button
+              type="button"
+              className="btn-alerta cerrar"
+              onClick={cerrarAlertaSeguimiento}
+            >
+              <FaXmark />
+            </button>
+          </div>
+        </div>
+      )}
 
       <div className="turnos-content">
         <div className="turnos-main-card">
@@ -315,15 +611,7 @@ function Turnos() {
                       <td>{turno.motivo}</td>
 
                       <td>
-                        <span
-                          className={
-                            turno.estado === 'Cancelado'
-                              ? 'estado-turno cancelado'
-                              : turno.estado === 'Realizado'
-                                ? 'estado-turno realizado'
-                                : 'estado-turno programado'
-                          }
-                        >
+                        <span className={obtenerClaseEstado(turno.estado)}>
                           {turno.estado || 'Programado'}
                         </span>
                       </td>
@@ -344,6 +632,14 @@ function Turnos() {
                             title="Reprogramar / editar turno"
                           >
                             <FaPen />
+                          </button>
+
+                          <button
+                            className="btn-accion ausente"
+                            onClick={() => marcarAusente(turno.id)}
+                            title="Marcar como ausente"
+                          >
+                            A
                           </button>
 
                           <button
@@ -464,6 +760,7 @@ function Turnos() {
                     <option value="Programado">Programado</option>
                     <option value="Realizado">Realizado</option>
                     <option value="Cancelado">Cancelado</option>
+                    <option value="Ausente">Ausente</option>
                   </select>
 
                   <label>Observaciones</label>
@@ -520,6 +817,16 @@ function Turnos() {
                   </div>
 
                   <div>
+                    <span>Teléfono</span>
+                    <strong>
+                      {
+                        obtenerClienteDeMascota(turnoSeleccionado.mascotaId)
+                          ?.telefono
+                      }
+                    </strong>
+                  </div>
+
+                  <div>
                     <span>Motivo</span>
                     <strong>{turnoSeleccionado.motivo}</strong>
                   </div>
@@ -537,13 +844,56 @@ function Turnos() {
                   </div>
                 </div>
 
-                <button
-                  className="btn-editar-detalle"
-                  onClick={() => abrirEditarTurno(turnoSeleccionado)}
-                >
-                  <FaPen />
-                  Reprogramar Turno
-                </button>
+                {(turnoSeleccionado.estado === 'Cancelado' ||
+                  turnoSeleccionado.estado === 'Ausente' ||
+                  (turnoSeleccionado.motivo === 'Vacunación' &&
+                    turnoSeleccionado.estado !== 'Realizado')) && (
+                  <div className="seguimiento-detalle">
+                    <FaTriangleExclamation />
+                    <div>
+                      <strong>Seguimiento recomendado</strong>
+                      <p>
+                        Contactar al cliente para coordinar un nuevo turno.
+                      </p>
+                    </div>
+                  </div>
+                )}
+
+                <div className="acciones-detalle-turno">
+                  <button
+                    className="btn-editar-detalle"
+                    onClick={() => abrirEditarTurno(turnoSeleccionado)}
+                  >
+                    <FaPen />
+                    Reprogramar
+                  </button>
+
+                  <button
+                    className="btn-contacto-turno llamar"
+                    onClick={() =>
+                      llamarCliente(
+                        obtenerClienteDeMascota(turnoSeleccionado.mascotaId)
+                      )
+                    }
+                  >
+                    <FaPhone />
+                    Llamar
+                  </button>
+
+                  <button
+                    className="btn-contacto-turno whatsapp"
+                    onClick={() =>
+                      enviarWhatsapp(
+                        obtenerClienteDeMascota(turnoSeleccionado.mascotaId),
+                        obtenerMascota(turnoSeleccionado.mascotaId),
+                        turnoSeleccionado.motivo
+                      )
+                    }
+                  >
+                    <FaWhatsapp />
+                    WhatsApp
+                  </button>
+                </div>
               </>
             )}
           </aside>

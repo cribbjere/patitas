@@ -37,7 +37,7 @@ function Login() {
         <div className="login-card">
 
           <h2>Iniciar Sesión</h2>
-          <p className="login-subtitle">Ingresá tus credenciales</p>
+          <p className="login-subtitle">Ingresá tus datos</p>
 
           <form onSubmit={handleSubmit}>
             <label>Usuario</label>
