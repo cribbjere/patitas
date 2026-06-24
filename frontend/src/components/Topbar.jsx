@@ -73,9 +73,7 @@ function Topbar() {
 
   return (
     <header className="topbar">
-      <button className="menu-button" type="button">
-        <FaBars />
-      </button>
+      
 
       <div className="topbar-actions">
         <div className="notificaciones-wrapper">
