@@ -209,3 +209,65 @@ export const stock = [
     ultimaActualizacion: '2026-06-21',
   },
 ]
+export const consultas = [
+  {
+    id: 1,
+    mascotaId: 1,
+    fecha: '2026-06-20',
+    peso: 18.5,
+    temperatura: 38.2,
+    diagnostico: 'Control general sin complicaciones.',
+    tratamiento: 'Continuar alimentación habitual.',
+    observaciones: 'Paciente tranquilo durante la revisión.',
+  },
+  {
+    id: 2,
+    mascotaId: 2,
+    fecha: '2026-06-21',
+    peso: 4.2,
+    temperatura: 38.6,
+    diagnostico: 'Revisión por vacunación.',
+    tratamiento: 'Aplicar refuerzo según calendario.',
+    observaciones: 'Se recomienda próximo control en 30 días.',
+  },
+  {
+    id: 3,
+    mascotaId: 3,
+    fecha: '2026-06-22',
+    peso: 5.1,
+    temperatura: 38.4,
+    diagnostico: 'Control de rutina.',
+    tratamiento: 'Sin medicación indicada.',
+    observaciones: 'Buen estado general.',
+  },
+]
+
+export const serviciosHigiene = [
+  {
+    id: 1,
+    mascotaId: 1,
+    fecha: '2026-06-18',
+    tipoServicio: 'Baño completo',
+    importe: 12000,
+    estado: 'Realizado',
+    observaciones: 'Se realizó baño con shampoo neutro.',
+  },
+  {
+    id: 2,
+    mascotaId: 2,
+    fecha: '2026-06-19',
+    tipoServicio: 'Corte de uñas',
+    importe: 5000,
+    estado: 'Realizado',
+    observaciones: 'Mascota tranquila durante el servicio.',
+  },
+  {
+    id: 3,
+    mascotaId: 3,
+    fecha: '2026-06-25',
+    tipoServicio: 'Baño y cepillado',
+    importe: 15000,
+    estado: 'Pendiente',
+    observaciones: 'Servicio programado.',
+  },
+]
