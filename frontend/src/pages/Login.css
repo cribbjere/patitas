@@ -1,0 +1,240 @@
+.login-page {
+    width: 100vw;
+    height: 100vh;
+    display: flex;
+    overflow: hidden;
+}
+
+/* LADO IZQUIERDO */
+
+.login-left {
+    width: 50%;
+    height: 100vh;
+    background-color: #003b49;
+    position: relative;
+    overflow: hidden;
+}
+
+.login-left-content {
+    width: 100%;
+    height: 100%;
+
+    display: flex;
+    flex-direction: column;
+    align-items: center;
+    justify-content: center;
+
+    padding-top: 10px;
+}
+
+.login-logo {
+    width: clamp(220px, 27vw, 280px);
+    margin-bottom: 26px;
+    z-index: 2;
+}
+
+.login-left h1 {
+    color: #ffffff;
+    font-size: clamp(21px, 2.3vw, 24px);
+    font-weight: 800;
+    line-height: 1.2;
+    margin-bottom: 20px;
+    z-index: 2;
+    text-align: center;
+}
+
+.login-left p {
+    color: #ffffff;
+    font-size: clamp(16px, 1.7vw, 18px);
+    font-weight: 700;
+    z-index: 2;
+    text-align: center;
+}
+
+/* HUELLAS */
+
+.paw {
+    position: absolute;
+    width: clamp(115px, 14vw, 150px);
+    opacity: 0.28;
+    filter: brightness(0.45);
+    pointer-events: none;
+}
+
+.paw-top-left {
+    top: -18px;
+    left: 28px;
+}
+
+.paw-top-right {
+    top: -18px;
+    right: 58px;
+}
+
+.paw-bottom-left {
+    bottom: 18px;
+    left: 26px;
+}
+
+.paw-bottom-right {
+    bottom: -12px;
+    right: 42px;
+}
+
+/* LADO DERECHO */
+
+.login-right {
+    width: 50%;
+    height: 100vh;
+    background-color: #f4efe7;
+
+    display: flex;
+    justify-content: center;
+    align-items: center;
+}
+
+.login-card {
+    width: clamp(310px, 33vw, 324px);
+    min-height: 398px;
+
+    background-color: #ffffff;
+    border-radius: 12px;
+
+    padding: 34px 31px 25px;
+
+    box-shadow: 0px 15px 26px rgba(0, 0, 0, 0.22);
+}
+
+.login-card h2 {
+    color: #1d2944;
+    font-size: 28px;
+    font-weight: 800;
+    line-height: 1.1;
+    margin-bottom: 8px;
+}
+
+.login-subtitle {
+    color: #7c849d;
+    font-size: 16px;
+    font-weight: 400;
+    margin-bottom: 30px;
+}
+
+.login-card form {
+    width: 100%;
+    display: flex;
+    flex-direction: column;
+}
+
+.login-card label {
+    color: #263047;
+    font-size: 15.5px;
+    font-weight: 400;
+    margin-bottom: 8px;
+}
+
+.input-group-login {
+    width: 100%;
+    height: 38px;
+    position: relative;
+    margin-bottom: 18px;
+}
+
+.input-group-login input {
+    width: 100%;
+    height: 100%;
+
+    border: 1px solid #d3d3d3;
+    border-radius: 7px;
+
+    padding-left: 38px;
+    padding-right: 12px;
+
+    font-size: 15px;
+    color: #263047;
+    outline: none;
+
+    background-color: #ffffff;
+
+    box-shadow: 0px 9px 15px rgba(0, 0, 0, 0.18);
+}
+
+.input-group-login input::placeholder {
+    color: #9fa8b8;
+}
+
+.input-icon {
+    position: absolute;
+    left: 12px;
+    top: 50%;
+    transform: translateY(-50%);
+
+    color: #a4adbb;
+    font-size: 18px;
+    z-index: 2;
+}
+
+.login-card button {
+    width: 166px;
+    height: 42px;
+
+    align-self: center;
+
+    border: none;
+    border-radius: 7px;
+
+    background-color: #2f8c80;
+    color: white;
+
+    font-size: 16px;
+    font-weight: 500;
+
+    cursor: pointer;
+
+    margin-top: 4px;
+    margin-bottom: 12px;
+}
+
+.login-card button:hover {
+    background-color: #28796f;
+}
+
+.login-card a {
+    color: #2f8c80;
+    font-size: 13px;
+    text-align: center;
+    text-decoration: none;
+}
+
+/* RESPONSIVE */
+
+@media (max-width: 768px) {
+    .login-page {
+        flex-direction: column;
+        overflow-y: auto;
+    }
+
+    .login-left {
+        width: 100%;
+        height: 45vh;
+        min-height: 330px;
+    }
+
+    .login-right {
+        width: 100%;
+        height: 55vh;
+        min-height: 430px;
+    }
+
+    .login-logo {
+        width: 210px;
+    }
+
+    .login-left h1 {
+        font-size: 21px;
+    }
+
+    .login-left p {
+        font-size: 15px;
+    }
+}
