@@ -135,3 +135,40 @@ export const ventas = [
     estado: 'Completada',
   },
 ]
+export const productos = [
+  {
+    id: 1,
+    descripcion: 'Alimento balanceado perro adulto',
+    categoria: 'Alimento',
+    precio: 18500,
+    estado: true,
+  },
+  {
+    id: 2,
+    descripcion: 'Alimento balanceado gato adulto',
+    categoria: 'Alimento',
+    precio: 16500,
+    estado: true,
+  },
+  {
+    id: 3,
+    descripcion: 'Shampoo neutro para mascotas',
+    categoria: 'Higiene',
+    precio: 7200,
+    estado: true,
+  },
+  {
+    id: 4,
+    descripcion: 'Pipeta antipulgas',
+    categoria: 'Medicamento',
+    precio: 9500,
+    estado: true,
+  },
+  {
+    id: 5,
+    descripcion: 'Collar regulable',
+    categoria: 'Accesorio',
+    precio: 6000,
+    estado: true,
+  },
+]
