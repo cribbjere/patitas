@@ -271,3 +271,40 @@ export const serviciosHigiene = [
     observaciones: 'Servicio programado.',
   },
 ]
+export const usuarios = [
+  {
+    id: 1,
+    nombre: 'Administrador General',
+    usuario: 'admin',
+    rol: 'Administrador',
+    estado: true,
+  },
+  {
+    id: 2,
+    nombre: 'Recepción',
+    usuario: 'recepcion',
+    rol: 'Recepcionista',
+    estado: true,
+  },
+  {
+    id: 3,
+    nombre: 'Veterinario',
+    usuario: 'veterinario',
+    rol: 'Veterinario',
+    estado: true,
+  },
+  {
+    id: 4,
+    nombre: 'Ventas',
+    usuario: 'ventas',
+    rol: 'Ventas',
+    estado: true,
+  },
+  {
+    id: 5,
+    nombre: 'Higiene',
+    usuario: 'higiene',
+    rol: 'Higiene',
+    estado: true,
+  },
+]
