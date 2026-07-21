@@ -1,4 +1,4 @@
-import { useState } from 'react'
+import { useMemo, useState } from 'react'
 import {
   FaMagnifyingGlass,
   FaPlus,
@@ -25,6 +25,12 @@ const productoVacio = {
   estado: true,
 }
 
+const formatoDinero = new Intl.NumberFormat('es-AR', {
+  style: 'currency',
+  currency: 'ARS',
+  maximumFractionDigits: 0,
+})
+
 function Productos() {
   const [productos, setProductos] = useState(productosIniciales)
   const [busqueda, setBusqueda] = useState('')
@@ -32,12 +38,7 @@ function Productos() {
   const [productoSeleccionado, setProductoSeleccionado] = useState(null)
   const [modoEdicion, setModoEdicion] = useState(false)
   const [formulario, setFormulario] = useState(productoVacio)
-
-  const formatoDinero = new Intl.NumberFormat('es-AR', {
-    style: 'currency',
-    currency: 'ARS',
-    maximumFractionDigits: 0,
-  })
+  const [errorFormulario, setErrorFormulario] = useState('')
 
   const obtenerTipoProducto = (producto) => {
     return producto.tipoProducto || producto.categoria || 'Producto'
@@ -51,24 +52,29 @@ function Productos() {
     return producto.laboratorio || 'Sin especificar'
   }
 
-  const productosFiltrados = productos.filter((producto) => {
-    const texto = `
-      ${producto.descripcion}
-      ${producto.categoria}
-      ${obtenerTipoProducto(producto)}
-      ${obtenerCondicionVenta(producto)}
-      ${obtenerLaboratorio(producto)}
-      ${producto.precio}
-      ${producto.estado ? 'activo' : 'inactivo'}
-    `.toLowerCase()
+  const productosFiltrados = useMemo(() => {
+    const termino = busqueda.trim().toLowerCase()
 
-    return texto.includes(busqueda.toLowerCase())
-  })
+    return productos.filter((producto) => {
+      const texto = `
+        ${producto.descripcion}
+        ${producto.categoria}
+        ${obtenerTipoProducto(producto)}
+        ${obtenerCondicionVenta(producto)}
+        ${obtenerLaboratorio(producto)}
+        ${producto.precio}
+        ${producto.estado ? 'activo' : 'inactivo'}
+      `.toLowerCase()
+
+      return texto.includes(termino)
+    })
+  }, [busqueda, productos])
 
   const abrirNuevoProducto = () => {
     setFormulario(productoVacio)
     setProductoSeleccionado(null)
     setModoEdicion(false)
+    setErrorFormulario('')
     setMostrarFormulario(true)
   }
 
@@ -76,21 +82,23 @@ function Productos() {
     setProductoSeleccionado(producto)
     setMostrarFormulario(false)
     setModoEdicion(false)
+    setErrorFormulario('')
   }
 
   const abrirEditarProducto = (producto) => {
     setFormulario({
-      descripcion: producto.descripcion,
-      categoria: producto.categoria,
+      descripcion: producto.descripcion || '',
+      categoria: producto.categoria || '',
       tipoProducto: producto.tipoProducto || producto.categoria || 'Producto',
       condicionVenta: producto.condicionVenta || 'Venta libre',
       laboratorio: producto.laboratorio || '',
-      precio: String(producto.precio),
-      estado: producto.estado,
+      precio: String(producto.precio ?? ''),
+      estado: Boolean(producto.estado),
     })
 
     setProductoSeleccionado(producto)
     setModoEdicion(true)
+    setErrorFormulario('')
     setMostrarFormulario(true)
   }
 
@@ -99,16 +107,11 @@ function Productos() {
     setProductoSeleccionado(null)
     setMostrarFormulario(false)
     setModoEdicion(false)
+    setErrorFormulario('')
   }
 
   const manejarCambio = (e) => {
     const { name, value, type, checked } = e.target
-
-    let nuevoValor = value
-
-    if (name === 'precio') {
-      nuevoValor = soloNumerosDecimales(value)
-    }
 
     if (name === 'tipoProducto') {
       let nuevaCategoria = formulario.categoria
@@ -128,97 +131,114 @@ function Productos() {
         nuevaCondicion = 'Requiere receta'
       }
 
-      setFormulario({
-        ...formulario,
+      setFormulario((formularioActual) => ({
+        ...formularioActual,
         tipoProducto: value,
         categoria: nuevaCategoria,
         condicionVenta: nuevaCondicion,
-      })
+      }))
 
+      if (errorFormulario) setErrorFormulario('')
       return
     }
 
-    setFormulario({
-      ...formulario,
+    let nuevoValor = value
+
+    if (name === 'precio') {
+      nuevoValor = soloNumerosDecimales(value)
+    }
+
+    setFormulario((formularioActual) => ({
+      ...formularioActual,
       [name]: type === 'checkbox' ? checked : nuevoValor,
-    })
+    }))
+
+    if (errorFormulario) setErrorFormulario('')
   }
 
-  const guardarProducto = (e) => {
-    e.preventDefault()
-
-    if (
-      !formulario.descripcion ||
-      !formulario.categoria ||
-      !formulario.tipoProducto ||
-      !formulario.condicionVenta ||
-      !formulario.precio
-    ) {
-      alert('Completá descripción, categoría, tipo, condición de venta y precio.')
-      return
+  const validarFormulario = () => {
+    if (!formulario.descripcion.trim()) {
+      return 'Ingresá la descripción del producto.'
     }
 
-    if (Number(formulario.precio) <= 0) {
-      alert('El precio debe ser mayor a cero.')
-      return
+    if (!formulario.categoria) {
+      return 'Seleccioná una categoría.'
+    }
+
+    if (!formulario.tipoProducto) {
+      return 'Seleccioná el tipo de producto.'
+    }
+
+    if (!formulario.condicionVenta) {
+      return 'Seleccioná la condición de venta.'
+    }
+
+    if (!formulario.precio || Number(formulario.precio) <= 0) {
+      return 'Ingresá un precio válido mayor que cero.'
     }
 
     if (
       (formulario.tipoProducto === 'Medicamento' ||
         formulario.tipoProducto === 'Vacuna') &&
-      !formulario.laboratorio
+      !formulario.laboratorio.trim()
     ) {
-      alert('Para medicamentos y vacunas se debe cargar laboratorio o marca.')
+      return 'Para medicamentos y vacunas se debe indicar laboratorio o marca.'
+    }
+
+    return ''
+  }
+
+  const guardarProducto = (e) => {
+    e.preventDefault()
+
+    const error = validarFormulario()
+
+    if (error) {
+      setErrorFormulario(error)
       return
     }
 
-    if (modoEdicion) {
-      const productosActualizados = productos.map((producto) => {
-        if (producto.id === productoSeleccionado.id) {
-          return {
-            id: productoSeleccionado.id,
-            descripcion: formulario.descripcion,
-            categoria: formulario.categoria,
-            tipoProducto: formulario.tipoProducto,
-            condicionVenta: formulario.condicionVenta,
-            laboratorio: formulario.laboratorio,
-            precio: Number(formulario.precio),
-            estado: formulario.estado,
-          }
-        }
+    const datosProducto = {
+      descripcion: formulario.descripcion.trim(),
+      categoria: formulario.categoria,
+      tipoProducto: formulario.tipoProducto,
+      condicionVenta: formulario.condicionVenta,
+      laboratorio: formulario.laboratorio.trim(),
+      precio: Number(formulario.precio),
+      estado: formulario.estado,
+    }
 
-        return producto
-      })
-
-      setProductos(productosActualizados)
+    if (modoEdicion && productoSeleccionado) {
+      setProductos((productosActuales) =>
+        productosActuales.map((producto) =>
+          producto.id === productoSeleccionado.id
+            ? { ...producto, ...datosProducto }
+            : producto
+        )
+      )
     } else {
-      const nuevoProducto = {
-        id: Date.now(),
-        descripcion: formulario.descripcion,
-        categoria: formulario.categoria,
-        tipoProducto: formulario.tipoProducto,
-        condicionVenta: formulario.condicionVenta,
-        laboratorio: formulario.laboratorio,
-        precio: Number(formulario.precio),
-        estado: formulario.estado,
-      }
-
-      setProductos([...productos, nuevoProducto])
+      setProductos((productosActuales) => [
+        ...productosActuales,
+        {
+          id: Date.now(),
+          ...datosProducto,
+        },
+      ])
     }
 
     cerrarPanel()
   }
 
   const eliminarProducto = (id) => {
-    const confirmar = window.confirm('¿Seguro que querés eliminar este producto?')
+    const confirmar = window.confirm(
+      '¿Seguro que querés eliminar este producto?'
+    )
 
     if (!confirmar) return
 
-    const productosActualizados = productos.filter(
-      (producto) => producto.id !== id
+    setProductos((productosActuales) =>
+      productosActuales.filter((producto) => producto.id !== id)
     )
-
-    setProductos(productosActualizados)
 
     if (productoSeleccionado?.id === id) {
       cerrarPanel()
@@ -239,15 +259,27 @@ function Productos() {
     return 'condicion-producto libre'
   }
 
+  const productoRestringido = (producto) => {
+    const condicion = obtenerCondicionVenta(producto)
+
+    return condicion === 'Requiere receta' || condicion === 'Uso veterinario'
+  }
+
   return (
     <section className="productos-page">
       <div className="productos-header">
         <div>
           <h1>Productos</h1>
-          <p>Gestión de alimentos, medicamentos, vacunas, higiene y accesorios</p>
+          <p>
+            Gestión de alimentos, medicamentos, vacunas, higiene y accesorios
+          </p>
         </div>
 
-        <button className="btn-nuevo-producto" onClick={abrirNuevoProducto}>
+        <button
+          type="button"
+          className="btn-nuevo-producto"
+          onClick={abrirNuevoProducto}
+        >
           <FaPlus />
           Nuevo Producto
         </button>
@@ -268,7 +300,8 @@ function Productos() {
             </div>
 
             <span className="productos-total">
-              {productosFiltrados.length} productos
+              {productosFiltrados.length}{' '}
+              {productosFiltrados.length === 1 ? 'producto' : 'productos'}
             </span>
           </div>
 
@@ -298,8 +331,7 @@ function Productos() {
                         <div>
                           <strong>{producto.descripcion}</strong>
                           <small>
-                            {obtenerLaboratorio(producto)} | ID producto:{' '}
-                            {producto.id}
+                            {obtenerLaboratorio(producto)} · ID {producto.id}
                           </small>
                         </div>
                       </div>
@@ -336,25 +368,31 @@ function Productos() {
                     <td>
                       <div className="acciones">
                         <button
+                          type="button"
                           className="btn-accion ver"
                           onClick={() => abrirVerProducto(producto)}
                           title="Ver producto"
+                          aria-label="Ver producto"
                         >
                           <FaEye />
                         </button>
 
                         <button
+                          type="button"
                           className="btn-accion editar"
                           onClick={() => abrirEditarProducto(producto)}
                           title="Editar producto"
+                          aria-label="Editar producto"
                         >
                           <FaPen />
                         </button>
 
                         <button
+                          type="button"
                           className="btn-accion eliminar"
                           onClick={() => eliminarProducto(producto.id)}
                           title="Eliminar producto"
+                          aria-label="Eliminar producto"
                         >
                           <FaTrash />
                         </button>
@@ -377,7 +415,12 @@ function Productos() {
 
         {(mostrarFormulario || productoSeleccionado) && (
           <aside className="productos-side-card">
-            <button className="btn-cerrar" onClick={cerrarPanel}>
+            <button
+              type="button"
+              className="btn-cerrar"
+              onClick={cerrarPanel}
+              aria-label="Cerrar panel"
+            >
               <FaXmark />
             </button>
 
@@ -392,16 +435,26 @@ function Productos() {
                 </p>
 
                 <form className="producto-form" onSubmit={guardarProducto}>
-                  <label>Descripción</label>
+                  {errorFormulario && (
+                    <div className="producto-form-error" role="alert">
+                      <FaTriangleExclamation />
+                      <span>{errorFormulario}</span>
+                    </div>
+                  )}
+
+                  <label htmlFor="descripcion">Descripción</label>
                   <input
+                    id="descripcion"
                     type="text"
                     name="descripcion"
                     value={formulario.descripcion}
                     onChange={manejarCambio}
+                    placeholder="Ej: Antiparasitario interno"
                   />
 
-                  <label>Categoría</label>
+                  <label htmlFor="categoria">Categoría</label>
                   <select
+                    id="categoria"
                     name="categoria"
                     value={formulario.categoria}
                     onChange={manejarCambio}
@@ -416,8 +469,9 @@ function Productos() {
                     <option value="Otro">Otro</option>
                   </select>
 
-                  <label>Tipo de producto</label>
+                  <label htmlFor="tipoProducto">Tipo de producto</label>
                   <select
+                    id="tipoProducto"
                     name="tipoProducto"
                     value={formulario.tipoProducto}
                     onChange={manejarCambio}
@@ -427,8 +481,9 @@ function Productos() {
                     <option value="Vacuna">Vacuna</option>
                   </select>
 
-                  <label>Condición de venta</label>
+                  <label htmlFor="condicionVenta">Condición de venta</label>
                   <select
+                    id="condicionVenta"
                     name="condicionVenta"
                     value={formulario.condicionVenta}
                     onChange={manejarCambio}
@@ -438,8 +493,9 @@ function Productos() {
                     <option value="Requiere receta">Requiere receta</option>
                   </select>
 
-                  <label>Laboratorio / Marca</label>
+                  <label htmlFor="laboratorio">Laboratorio / Marca</label>
                   <input
+                    id="laboratorio"
                     type="text"
                     name="laboratorio"
                     value={formulario.laboratorio}
@@ -447,13 +503,15 @@ function Productos() {
                     placeholder="Ej: LabVet, VitalCan, Holliday"
                   />
 
-                  <label>Precio</label>
+                  <label htmlFor="precio">Precio</label>
                   <input
+                    id="precio"
                     type="text"
                     inputMode="decimal"
                     name="precio"
                     value={formulario.precio}
                     onChange={manejarCambio}
+                    placeholder="Ej: 12500"
                   />
 
                   {(formulario.condicionVenta === 'Requiere receta' ||
@@ -482,7 +540,7 @@ function Productos() {
 
                   <button type="submit" className="btn-guardar">
                     <FaFloppyDisk />
-                    Guardar Producto
+                    {modoEdicion ? 'Guardar Cambios' : 'Guardar Producto'}
                   </button>
                 </form>
               </>
@@ -504,14 +562,16 @@ function Productos() {
 
                   <div>
                     <span>Tipo</span>
-                    <strong>{obtenerTipoProducto(productoSeleccionado)}</strong>
+                    <span className="tipo-producto">
+                      {obtenerTipoProducto(productoSeleccionado)}
+                    </span>
                   </div>
 
                   <div>
                     <span>Condición de venta</span>
-                    <strong>
+                    <span className={obtenerClaseCondicion(productoSeleccionado)}>
                       {obtenerCondicionVenta(productoSeleccionado)}
-                    </strong>
+                    </span>
                   </div>
 
                   <div>
@@ -528,16 +588,19 @@ function Productos() {
 
                   <div>
                     <span>Estado</span>
-                    <strong>
+                    <span
+                      className={
+                        productoSeleccionado.estado
+                          ? 'estado-producto activo'
+                          : 'estado-producto inactivo'
+                      }
+                    >
                       {productoSeleccionado.estado ? 'Activo' : 'Inactivo'}
-                    </strong>
+                    </span>
                   </div>
                 </div>
 
-                {(obtenerCondicionVenta(productoSeleccionado) ===
-                  'Requiere receta' ||
-                  obtenerCondicionVenta(productoSeleccionado) ===
-                    'Uso veterinario') && (
+                {productoRestringido(productoSeleccionado) && (
                   <div className="aviso-producto-restringido">
                     <FaTriangleExclamation />
                     <div>
@@ -550,6 +613,7 @@ function Productos() {
                 )}
 
                 <button
+                  type="button"
                   className="btn-editar-detalle"
                   onClick={() => abrirEditarProducto(productoSeleccionado)}
                 >
