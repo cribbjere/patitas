@@ -685,3 +685,208 @@
         align-items: flex-start;
     }
 }
+
+/* Mejoras de interacción y validación */
+.ventas-page button,
+.ventas-page input,
+.ventas-page select {
+    transition:
+        border-color 0.2s ease,
+        box-shadow 0.2s ease,
+        background-color 0.2s ease,
+        transform 0.2s ease;
+}
+
+.ventas-page button:focus-visible,
+.ventas-page input:focus-visible,
+.ventas-page select:focus-visible {
+    outline: 3px solid rgba(47, 140, 128, 0.22);
+    outline-offset: 2px;
+}
+
+.ventas-page .btn-nueva-venta:hover,
+.ventas-page .btn-guardar:hover,
+.ventas-page .btn-agregar-producto:hover,
+.ventas-page .btn-accion:hover,
+.ventas-page .btn-descargar-pdf:hover,
+.ventas-page .btn-imprimir:hover {
+    transform: translateY(-1px);
+}
+
+.ventas-page .btn-accion:active,
+.ventas-page .btn-nueva-venta:active,
+.ventas-page .btn-guardar:active {
+    transform: translateY(0);
+}
+
+.ventas-side-card {
+    max-height: calc(100vh - 150px);
+    overflow-y: auto;
+    scrollbar-width: thin;
+    scrollbar-color: #c7cbd4 transparent;
+}
+
+.ventas-side-card::-webkit-scrollbar {
+    width: 7px;
+}
+
+.ventas-side-card::-webkit-scrollbar-thumb {
+    background-color: #c7cbd4;
+    border-radius: 999px;
+}
+
+.ventas-table {
+    min-width: 900px;
+}
+
+.mensaje-ventas {
+    width: 100%;
+    margin-bottom: 16px;
+    border-radius: 10px;
+    padding: 12px 14px;
+    display: flex;
+    align-items: center;
+    justify-content: space-between;
+    gap: 12px;
+    font-size: 14px;
+    font-weight: 600;
+}
+
+.mensaje-ventas.error {
+    background-color: #fff1f1;
+    border: 1px solid #efb4b4;
+    color: #9f1d14;
+}
+
+.mensaje-ventas.exito {
+    background-color: #edf9f4;
+    border: 1px solid #a9d9c8;
+    color: #226b61;
+}
+
+.mensaje-ventas button {
+    width: 28px;
+    height: 28px;
+    min-width: 28px;
+    border: none;
+    border-radius: 7px;
+    background: transparent;
+    color: inherit;
+    display: flex;
+    align-items: center;
+    justify-content: center;
+    cursor: pointer;
+}
+
+.mensaje-ventas button:hover {
+    background-color: rgba(0, 0, 0, 0.06);
+}
+
+.modal-overlay {
+    position: fixed;
+    inset: 0;
+    z-index: 1200;
+    background-color: rgba(17, 24, 39, 0.48);
+    display: flex;
+    align-items: center;
+    justify-content: center;
+    padding: 20px;
+    backdrop-filter: blur(2px);
+}
+
+.modal-confirmacion {
+    width: min(100%, 440px);
+    background-color: #ffffff;
+    border-radius: 16px;
+    padding: 26px;
+    box-shadow: 0 22px 60px rgba(0, 0, 0, 0.24);
+    text-align: center;
+}
+
+.modal-icono {
+    width: 52px;
+    height: 52px;
+    margin: 0 auto 14px;
+    border-radius: 50%;
+    background-color: #fff0f0;
+    color: #b42318;
+    display: flex;
+    align-items: center;
+    justify-content: center;
+    font-size: 23px;
+}
+
+.modal-confirmacion h3 {
+    margin: 0;
+    color: #1d2944;
+    font-size: 21px;
+    font-weight: 800;
+}
+
+.modal-confirmacion p {
+    margin: 10px 0 22px;
+    color: #6f7890;
+    font-size: 14px;
+    line-height: 1.55;
+}
+
+.modal-acciones {
+    display: flex;
+    justify-content: center;
+    gap: 10px;
+}
+
+.btn-modal-cancelar,
+.btn-modal-eliminar {
+    min-height: 42px;
+    border: none;
+    border-radius: 9px;
+    padding: 0 18px;
+    font-family: 'Poppins', sans-serif;
+    font-size: 14px;
+    font-weight: 700;
+    cursor: pointer;
+    display: inline-flex;
+    align-items: center;
+    justify-content: center;
+    gap: 8px;
+}
+
+.btn-modal-cancelar {
+    background-color: #eef0f4;
+    color: #1d2944;
+}
+
+.btn-modal-eliminar {
+    background-color: #b42318;
+    color: #ffffff;
+}
+
+.btn-modal-cancelar:hover {
+    background-color: #e1e4ea;
+}
+
+.btn-modal-eliminar:hover {
+    background-color: #941d14;
+}
+
+@media (max-width: 520px) {
+    .ventas-main-card,
+    .ventas-side-card {
+        padding: 14px;
+        border-radius: 10px;
+    }
+
+    .ventas-side-card {
+        max-height: none;
+    }
+
+    .modal-acciones {
+        flex-direction: column-reverse;
+    }
+
+    .btn-modal-cancelar,
+    .btn-modal-eliminar {
+        width: 100%;
+    }
+}

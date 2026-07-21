@@ -1,4 +1,4 @@
-import { useEffect, useState } from 'react'
+import { useEffect, useMemo, useState } from 'react'
 import {
   FaMagnifyingGlass,
   FaPlus,
@@ -47,6 +47,8 @@ function obtenerDiasParaVencer(fechaVencimiento) {
   const vencimiento = new Date(`${fechaVencimiento}T00:00:00`)
   vencimiento.setHours(0, 0, 0, 0)
 
+  if (Number.isNaN(vencimiento.getTime())) return null
+
   const diferencia = vencimiento - hoy
 
   return Math.ceil(diferencia / (1000 * 60 * 60 * 24))
@@ -88,6 +90,16 @@ function productoRequiereVencimiento(producto) {
   )
 }
 
+function formatearFecha(fecha) {
+  if (!fecha) return 'Sin vencimiento'
+
+  const fechaLocal = new Date(`${fecha}T00:00:00`)
+
+  if (Number.isNaN(fechaLocal.getTime())) return fecha
+
+  return fechaLocal.toLocaleDateString('es-AR')
+}
+
 function Stock() {
   const [productos] = useState(productosIniciales)
   const [stock, setStock] = useState(normalizarStockInicial(stockInicial))
@@ -97,33 +109,39 @@ function Stock() {
   const [modoEdicion, setModoEdicion] = useState(false)
   const [formulario, setFormulario] = useState(stockVacio)
   const [alertaStock, setAlertaStock] = useState(null)
+  const [errorFormulario, setErrorFormulario] = useState('')
 
   const obtenerProducto = (productoId) => {
-    return productos.find((producto) => producto.id === productoId)
+    return productos.find((producto) => producto.id === Number(productoId))
   }
 
-  const stockFiltrado = stock.filter((item) => {
-    const producto = obtenerProducto(item.productoId)
-    const estado = obtenerEstadoStock(item)
+  const stockFiltrado = useMemo(() => {
+    const termino = busqueda.trim().toLowerCase()
 
-    const texto = `
-      ${producto?.descripcion}
-      ${producto?.categoria}
-      ${item.lote}
-      ${item.cantidad}
-      ${item.stockMinimo}
-      ${item.fechaVencimiento}
-      ${item.ultimaActualizacion}
-      ${estado}
-    `.toLowerCase()
+    return stock.filter((item) => {
+      const producto = obtenerProducto(item.productoId)
+      const estado = obtenerEstadoStock(item)
 
-    return texto.includes(busqueda.toLowerCase())
-  })
+      const texto = `
+        ${producto?.descripcion || ''}
+        ${producto?.categoria || ''}
+        ${item.lote}
+        ${item.cantidad}
+        ${item.stockMinimo}
+        ${item.fechaVencimiento}
+        ${item.ultimaActualizacion}
+        ${estado}
+      `.toLowerCase()
+
+      return texto.includes(termino)
+    })
+  }, [busqueda, stock, productos])
 
   const abrirNuevoStock = () => {
     setFormulario(stockVacio)
     setStockSeleccionado(null)
     setModoEdicion(false)
+    setErrorFormulario('')
     setMostrarFormulario(true)
   }
 
@@ -131,20 +149,22 @@ function Stock() {
     setStockSeleccionado(item)
     setMostrarFormulario(false)
     setModoEdicion(false)
+    setErrorFormulario('')
   }
 
   const abrirEditarStock = (item) => {
     setFormulario({
       productoId: item.productoId,
       lote: item.lote || '',
-      cantidad: item.cantidad,
-      stockMinimo: item.stockMinimo,
+      cantidad: String(item.cantidad ?? ''),
+      stockMinimo: String(item.stockMinimo ?? ''),
       fechaVencimiento: item.fechaVencimiento || '',
-      ultimaActualizacion: item.ultimaActualizacion,
+      ultimaActualizacion: item.ultimaActualizacion || '',
     })
 
     setStockSeleccionado(item)
     setModoEdicion(true)
+    setErrorFormulario('')
     setMostrarFormulario(true)
   }
 
@@ -153,6 +173,7 @@ function Stock() {
     setStockSeleccionado(null)
     setMostrarFormulario(false)
     setModoEdicion(false)
+    setErrorFormulario('')
   }
 
   const manejarCambio = (e) => {
@@ -164,84 +185,102 @@ function Stock() {
       nuevoValor = soloNumeros(value)
     }
 
-    setFormulario({
-      ...formulario,
-      [name]: name === 'productoId' ? Number(value) : nuevoValor,
+    setFormulario((formularioActual) => ({
+      ...formularioActual,
+      [name]: name === 'productoId' && value ? Number(value) : nuevoValor,
+    }))
+
+    if (errorFormulario) setErrorFormulario('')
+  }
+
+  const validarFormulario = () => {
+    const producto = obtenerProducto(formulario.productoId)
+
+    if (!formulario.productoId) {
+      return 'Seleccioná un producto.'
+    }
+
+    if (!formulario.lote.trim()) {
+      return 'Ingresá el número de lote.'
+    }
+
+    if (formulario.cantidad === '') {
+      return 'Ingresá la cantidad disponible.'
+    }
+
+    if (formulario.stockMinimo === '') {
+      return 'Ingresá el stock mínimo.'
+    }
+
+    if (!formulario.ultimaActualizacion) {
+      return 'Ingresá la fecha de actualización.'
+    }
+
+    if (Number(formulario.cantidad) < 0) {
+      return 'La cantidad no puede ser negativa.'
+    }
+
+    if (Number(formulario.stockMinimo) < 0) {
+      return 'El stock mínimo no puede ser negativo.'
+    }
+
+    if (productoRequiereVencimiento(producto) && !formulario.fechaVencimiento) {
+      return 'Este producto requiere fecha de vencimiento por lote.'
+    }
+
+    const loteRepetido = stock.some((item) => {
+      if (modoEdicion && item.id === stockSeleccionado?.id) {
+        return false
+      }
+
+      return (
+        item.productoId === Number(formulario.productoId) &&
+        item.lote.trim().toLowerCase() === formulario.lote.trim().toLowerCase()
+      )
     })
+
+    if (loteRepetido) {
+      return 'Ese lote ya está cargado para este producto.'
+    }
+
+    return ''
   }
 
   const guardarStock = (e) => {
     e.preventDefault()
 
-    const producto = obtenerProducto(formulario.productoId)
+    const error = validarFormulario()
 
-    if (
-      !formulario.productoId ||
-      !formulario.lote ||
-      formulario.cantidad === '' ||
-      formulario.stockMinimo === '' ||
-      !formulario.ultimaActualizacion
-    ) {
-      alert('Completá producto, lote, cantidad, stock mínimo y fecha de actualización.')
+    if (error) {
+      setErrorFormulario(error)
       return
     }
 
-    if (Number(formulario.cantidad) < 0 || Number(formulario.stockMinimo) < 0) {
-      alert('La cantidad y el stock mínimo no pueden ser negativos.')
-      return
+    const datosStock = {
+      productoId: Number(formulario.productoId),
+      lote: formulario.lote.trim().toUpperCase(),
+      cantidad: Number(formulario.cantidad),
+      stockMinimo: Number(formulario.stockMinimo),
+      fechaVencimiento: formulario.fechaVencimiento,
+      ultimaActualizacion: formulario.ultimaActualizacion,
     }
 
-    if (productoRequiereVencimiento(producto) && !formulario.fechaVencimiento) {
-      alert('Este producto requiere fecha de vencimiento por lote.')
-      return
-    }
-
-    const loteRepetido = stock.some((item) => {
-      if (modoEdicion && item.id === stockSeleccionado.id) {
-        return false
-      }
-
-      return (
-        item.productoId === formulario.productoId &&
-        item.lote.toLowerCase() === formulario.lote.toLowerCase()
+    if (modoEdicion && stockSeleccionado) {
+      setStock((stockActual) =>
+        stockActual.map((item) =>
+          item.id === stockSeleccionado.id
+            ? { ...item, ...datosStock }
+            : item
+        )
       )
-    })
-
-    if (loteRepetido) {
-      alert('Ese lote ya está cargado para este producto.')
-      return
-    }
-
-    if (modoEdicion) {
-      const stockActualizado = stock.map((item) => {
-        if (item.id === stockSeleccionado.id) {
-          return {
-            id: stockSeleccionado.id,
-            productoId: formulario.productoId,
-            lote: formulario.lote,
-            cantidad: Number(formulario.cantidad),
-            stockMinimo: Number(formulario.stockMinimo),
-            fechaVencimiento: formulario.fechaVencimiento,
-            ultimaActualizacion: formulario.ultimaActualizacion,
-          }
-        }
-
-        return item
-      })
-
-      setStock(stockActualizado)
     } else {
-      const nuevoStock = {
-        id: Date.now(),
-        productoId: formulario.productoId,
-        lote: formulario.lote,
-        cantidad: Number(formulario.cantidad),
-        stockMinimo: Number(formulario.stockMinimo),
-        fechaVencimiento: formulario.fechaVencimiento,
-        ultimaActualizacion: formulario.ultimaActualizacion,
-      }
-
-      setStock([...stock, nuevoStock])
+      setStock((stockActual) => [
+        ...stockActual,
+        {
+          id: Date.now(),
+          ...datosStock,
+        },
+      ])
     }
 
     cerrarPanel()
@@ -254,9 +293,7 @@ function Stock() {
 
     if (!confirmar) return
 
-    const stockActualizado = stock.filter((item) => item.id !== id)
-
-    setStock(stockActualizado)
+    setStock((stockActual) => stockActual.filter((item) => item.id !== id))
 
     if (stockSeleccionado?.id === id) {
       cerrarPanel()
@@ -277,55 +314,94 @@ function Stock() {
   }
 
   useEffect(() => {
-    stock.forEach((item) => {
-      const producto = obtenerProducto(item.productoId)
-      const diasParaVencer = obtenerDiasParaVencer(item.fechaVencimiento)
+    const itemsCriticos = stock
+      .map((item) => ({
+        item,
+        producto: obtenerProducto(item.productoId),
+        estado: obtenerEstadoStock(item),
+        diasParaVencer: obtenerDiasParaVencer(item.fechaVencimiento),
+      }))
+      .filter(
+        ({ estado }) =>
+          estado === 'Vencido' ||
+          estado === 'Próximo a vencer' ||
+          estado === 'Sin stock' ||
+          estado === 'Bajo stock'
+      )
 
-      if (diasParaVencer === null) return
+    itemsCriticos.forEach(({ item, producto, estado, diasParaVencer }) => {
+      let titulo = ''
+      let mensaje = ''
 
-      if (diasParaVencer < 0) {
-        const mensaje = `El lote ${item.lote} del producto ${producto?.descripcion} está vencido. No debería venderse ni utilizarse.`
-
-        crearAlertaSistema({
-          clave: `stock-vencido-${item.id}`,
-          titulo: 'Lote vencido',
-          mensaje,
-          origen: 'Stock',
-          cliente: 'Control interno',
-          telefono: '',
-          mascota: producto?.descripcion || '',
-        })
-
-        setAlertaStock({
-          tipo: 'Lote vencido',
-          mensaje,
-          producto,
-          item,
-        })
+      if (estado === 'Vencido') {
+        titulo = 'Lote vencido'
+        mensaje = `El lote ${item.lote} del producto ${producto?.descripcion || 'sin identificar'} está vencido. No debería venderse ni utilizarse.`
       }
 
-      if (diasParaVencer >= 0 && diasParaVencer <= 30) {
-        const mensaje = `El lote ${item.lote} del producto ${producto?.descripcion} vence en ${diasParaVencer} días.`
-
-        crearAlertaSistema({
-          clave: `stock-proximo-vencer-${item.id}`,
-          titulo: 'Lote próximo a vencer',
-          mensaje,
-          origen: 'Stock',
-          cliente: 'Control interno',
-          telefono: '',
-          mascota: producto?.descripcion || '',
-        })
-
-        setAlertaStock({
-          tipo: 'Lote próximo a vencer',
-          mensaje,
-          producto,
-          item,
-        })
+      if (estado === 'Próximo a vencer') {
+        titulo = 'Lote próximo a vencer'
+        mensaje = `El lote ${item.lote} del producto ${producto?.descripcion || 'sin identificar'} vence en ${diasParaVencer} días.`
       }
+
+      if (estado === 'Sin stock') {
+        titulo = 'Producto sin stock'
+        mensaje = `El lote ${item.lote} del producto ${producto?.descripcion || 'sin identificar'} no tiene unidades disponibles.`
+      }
+
+      if (estado === 'Bajo stock') {
+        titulo = 'Stock bajo'
+        mensaje = `El lote ${item.lote} del producto ${producto?.descripcion || 'sin identificar'} alcanzó el nivel mínimo de stock.`
+      }
+
+      crearAlertaSistema({
+        clave: `stock-${estado.toLowerCase().replaceAll(' ', '-')}-${item.id}`,
+        titulo,
+        mensaje,
+        origen: 'Stock',
+        cliente: 'Control interno',
+        telefono: '',
+        mascota: producto?.descripcion || '',
+      })
     })
-  }, [stock])
+
+    const masUrgente =
+      itemsCriticos.find(({ estado }) => estado === 'Vencido') ||
+      itemsCriticos.find(({ estado }) => estado === 'Sin stock') ||
+      itemsCriticos.find(({ estado }) => estado === 'Próximo a vencer') ||
+      itemsCriticos.find(({ estado }) => estado === 'Bajo stock')
+
+    if (!masUrgente) {
+      setAlertaStock(null)
+      return
+    }
+
+    const { item, producto, estado, diasParaVencer } = masUrgente
+
+    let mensaje = ''
+
+    if (estado === 'Vencido') {
+      mensaje = `El lote ${item.lote} del producto ${producto?.descripcion || 'sin identificar'} está vencido.`
+    } else if (estado === 'Sin stock') {
+      mensaje = `El lote ${item.lote} del producto ${producto?.descripcion || 'sin identificar'} no tiene unidades disponibles.`
+    } else if (estado === 'Próximo a vencer') {
+      mensaje = `El lote ${item.lote} del producto ${producto?.descripcion || 'sin identificar'} vence en ${diasParaVencer} días.`
+    } else {
+      mensaje = `El lote ${item.lote} del producto ${producto?.descripcion || 'sin identificar'} está en stock mínimo.`
+    }
+
+    setAlertaStock({
+      tipo: estado,
+      mensaje,
+      producto,
+      item,
+    })
+  }, [stock, productos])
+
+  const productoFormulario = obtenerProducto(formulario.productoId)
+  const diasFormulario = obtenerDiasParaVencer(formulario.fechaVencimiento)
+  const estadoSeleccionado = stockSeleccionado
+    ? obtenerEstadoStock(stockSeleccionado)
+    : null
 
   return (
     <section className="stock-page">
@@ -335,7 +411,11 @@ function Stock() {
           <p>Control de stock por lotes, cantidades y vencimientos</p>
         </div>
 
-        <button className="btn-nuevo-stock" onClick={abrirNuevoStock}>
+        <button
+          type="button"
+          className="btn-nuevo-stock"
+          onClick={abrirNuevoStock}
+        >
           <FaPlus />
           Nuevo Lote
         </button>
@@ -351,8 +431,8 @@ function Stock() {
             <strong>{alertaStock.tipo}</strong>
             <p>{alertaStock.mensaje}</p>
             <small>
-              Producto: {alertaStock.producto?.descripcion} | Lote:{' '}
-              {alertaStock.item?.lote}
+              Producto: {alertaStock.producto?.descripcion || 'Sin identificar'} ·
+              Lote: {alertaStock.item?.lote}
             </small>
           </div>
 
@@ -360,6 +440,7 @@ function Stock() {
             type="button"
             className="btn-cerrar-alerta-stock"
             onClick={cerrarAlertaStock}
+            aria-label="Cerrar alerta"
           >
             <FaXmark />
           </button>
@@ -380,7 +461,10 @@ function Stock() {
               />
             </div>
 
-            <span className="stock-total">{stockFiltrado.length} lotes</span>
+            <span className="stock-total">
+              {stockFiltrado.length}{' '}
+              {stockFiltrado.length === 1 ? 'lote' : 'lotes'}
+            </span>
           </div>
 
           <div className="stock-table-wrapper">
@@ -412,21 +496,19 @@ function Stock() {
                           </div>
 
                           <div>
-                            <strong>{producto?.descripcion}</strong>
-                            <small>ID producto: {producto?.id}</small>
+                            <strong>
+                              {producto?.descripcion || 'Producto no encontrado'}
+                            </strong>
+                            <small>ID producto: {producto?.id || '—'}</small>
                           </div>
                         </div>
                       </td>
 
-                      <td>{producto?.categoria}</td>
-
+                      <td>{producto?.categoria || 'Sin categoría'}</td>
                       <td>{item.lote}</td>
-
                       <td>{item.cantidad}</td>
-
                       <td>{item.stockMinimo}</td>
-
-                      <td>{item.fechaVencimiento || 'Sin vencimiento'}</td>
+                      <td>{formatearFecha(item.fechaVencimiento)}</td>
 
                       <td>
                         <span className={obtenerClaseEstado(estado)}>
@@ -437,25 +519,31 @@ function Stock() {
                       <td>
                         <div className="acciones">
                           <button
+                            type="button"
                             className="btn-accion ver"
                             onClick={() => abrirVerStock(item)}
                             title="Ver lote"
+                            aria-label="Ver lote"
                           >
                             <FaEye />
                           </button>
 
                           <button
+                            type="button"
                             className="btn-accion editar"
                             onClick={() => abrirEditarStock(item)}
                             title="Editar lote"
+                            aria-label="Editar lote"
                           >
                             <FaPen />
                           </button>
 
                           <button
+                            type="button"
                             className="btn-accion eliminar"
                             onClick={() => eliminarStock(item.id)}
                             title="Eliminar lote"
+                            aria-label="Eliminar lote"
                           >
                             <FaTrash />
                           </button>
@@ -479,7 +567,12 @@ function Stock() {
 
         {(mostrarFormulario || stockSeleccionado) && (
           <aside className="stock-side-card">
-            <button className="btn-cerrar" onClick={cerrarPanel}>
+            <button
+              type="button"
+              className="btn-cerrar"
+              onClick={cerrarPanel}
+              aria-label="Cerrar panel"
+            >
               <FaXmark />
             </button>
 
@@ -494,8 +587,16 @@ function Stock() {
                 </p>
 
                 <form className="stock-form" onSubmit={guardarStock}>
-                  <label>Producto</label>
+                  {errorFormulario && (
+                    <div className="stock-form-error" role="alert">
+                      <FaTriangleExclamation />
+                      <span>{errorFormulario}</span>
+                    </div>
+                  )}
+
+                  <label htmlFor="productoId">Producto</label>
                   <select
+                    id="productoId"
                     name="productoId"
                     value={formulario.productoId}
                     onChange={manejarCambio}
@@ -509,8 +610,9 @@ function Stock() {
                     ))}
                   </select>
 
-                  <label>Número de lote</label>
+                  <label htmlFor="lote">Número de lote</label>
                   <input
+                    id="lote"
                     type="text"
                     name="lote"
                     value={formulario.lote}
@@ -518,34 +620,45 @@ function Stock() {
                     placeholder="Ej: LOTE-2026-A"
                   />
 
-                  <label>Cantidad disponible</label>
+                  <label htmlFor="cantidad">Cantidad disponible</label>
                   <input
+                    id="cantidad"
                     type="text"
                     inputMode="numeric"
                     name="cantidad"
                     value={formulario.cantidad}
                     onChange={manejarCambio}
+                    placeholder="Ej: 25"
                   />
 
-                  <label>Stock mínimo</label>
+                  <label htmlFor="stockMinimo">Stock mínimo</label>
                   <input
+                    id="stockMinimo"
                     type="text"
                     inputMode="numeric"
                     name="stockMinimo"
                     value={formulario.stockMinimo}
                     onChange={manejarCambio}
+                    placeholder="Ej: 5"
                   />
 
-                  <label>Fecha de vencimiento</label>
+                  <label htmlFor="fechaVencimiento">
+                    Fecha de vencimiento
+                    {productoRequiereVencimiento(productoFormulario) && ' *'}
+                  </label>
                   <input
+                    id="fechaVencimiento"
                     type="date"
                     name="fechaVencimiento"
                     value={formulario.fechaVencimiento}
                     onChange={manejarCambio}
                   />
 
-                  <label>Última actualización</label>
+                  <label htmlFor="ultimaActualizacion">
+                    Última actualización
+                  </label>
                   <input
+                    id="ultimaActualizacion"
                     type="date"
                     name="ultimaActualizacion"
                     value={formulario.ultimaActualizacion}
@@ -553,13 +666,16 @@ function Stock() {
                   />
 
                   {formulario.fechaVencimiento &&
-                    obtenerDiasParaVencer(formulario.fechaVencimiento) <= 30 && (
+                    diasFormulario !== null &&
+                    diasFormulario <= 30 && (
                       <div className="aviso-vencimiento-form">
                         <FaTriangleExclamation />
                         <div>
                           <strong>Atención con este vencimiento</strong>
                           <span>
-                            El lote está vencido o próximo a vencer.
+                            {diasFormulario < 0
+                              ? 'El lote ya está vencido.'
+                              : `El lote vence en ${diasFormulario} días.`}
                           </span>
                         </div>
                       </div>
@@ -567,7 +683,7 @@ function Stock() {
 
                   <button type="submit" className="btn-guardar">
                     <FaFloppyDisk />
-                    Guardar Lote
+                    {modoEdicion ? 'Guardar Cambios' : 'Guardar Lote'}
                   </button>
                 </form>
               </>
@@ -581,14 +697,15 @@ function Stock() {
                     <span>Producto</span>
                     <strong>
                       {obtenerProducto(stockSeleccionado.productoId)
-                        ?.descripcion}
+                        ?.descripcion || 'Producto no encontrado'}
                     </strong>
                   </div>
 
                   <div>
                     <span>Categoría</span>
                     <strong>
-                      {obtenerProducto(stockSeleccionado.productoId)?.categoria}
+                      {obtenerProducto(stockSeleccionado.productoId)?.categoria ||
+                        'Sin categoría'}
                     </strong>
                   </div>
 
@@ -610,37 +727,40 @@ function Stock() {
                   <div>
                     <span>Fecha de vencimiento</span>
                     <strong>
-                      {stockSeleccionado.fechaVencimiento || 'Sin vencimiento'}
+                      {formatearFecha(stockSeleccionado.fechaVencimiento)}
                     </strong>
                   </div>
 
                   <div>
                     <span>Última actualización</span>
-                    <strong>{stockSeleccionado.ultimaActualizacion}</strong>
+                    <strong>
+                      {formatearFecha(stockSeleccionado.ultimaActualizacion)}
+                    </strong>
                   </div>
 
                   <div>
                     <span>Estado</span>
-                    <strong>{obtenerEstadoStock(stockSeleccionado)}</strong>
+                    <span className={obtenerClaseEstado(estadoSeleccionado)}>
+                      {estadoSeleccionado}
+                    </span>
                   </div>
                 </div>
 
-                {(obtenerEstadoStock(stockSeleccionado) === 'Vencido' ||
-                  obtenerEstadoStock(stockSeleccionado) ===
-                    'Próximo a vencer') && (
+                {(estadoSeleccionado === 'Vencido' ||
+                  estadoSeleccionado === 'Próximo a vencer') && (
                   <div className="aviso-vencimiento-form">
                     <FaTriangleExclamation />
                     <div>
                       <strong>Control de vencimiento</strong>
                       <span>
-                        Este lote está vencido o próximo a vencer. Debe
-                        controlarse antes de utilizarlo o venderlo.
+                        Este lote debe controlarse antes de utilizarlo o venderlo.
                       </span>
                     </div>
                   </div>
                 )}
 
                 <button
+                  type="button"
                   className="btn-editar-detalle"
                   onClick={() => abrirEditarStock(stockSeleccionado)}
                 >

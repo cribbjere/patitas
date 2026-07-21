@@ -1,4 +1,4 @@
-import { useState } from 'react'
+import { useMemo, useState } from 'react'
 import {
   FaMagnifyingGlass,
   FaPlus,
@@ -97,12 +97,18 @@ function Ventas() {
   const [ventaSeleccionada, setVentaSeleccionada] = useState(null)
   const [formulario, setFormulario] = useState(ventaVacia)
   const [carrito, setCarrito] = useState([])
+  const [mensaje, setMensaje] = useState(null)
+  const [ventaAEliminar, setVentaAEliminar] = useState(null)
 
-  const formatoDinero = new Intl.NumberFormat('es-AR', {
-    style: 'currency',
-    currency: 'ARS',
-    maximumFractionDigits: 0,
-  })
+  const formatoDinero = useMemo(
+    () =>
+      new Intl.NumberFormat('es-AR', {
+        style: 'currency',
+        currency: 'ARS',
+        maximumFractionDigits: 0,
+      }),
+    []
+  )
 
   const obtenerCliente = (clienteId) => {
     return clientes.find((cliente) => cliente.id === clienteId)
@@ -167,9 +173,12 @@ function Ventas() {
     return condicion === 'Uso veterinario' || condicion === 'Requiere receta'
   }
 
-  const totalCarrito = carrito.reduce((total, item) => total + item.subtotal, 0)
+  const totalCarrito = useMemo(
+    () => carrito.reduce((total, item) => total + item.subtotal, 0),
+    [carrito]
+  )
 
-  const ventasFiltradas = ventas.filter((venta) => {
+  const ventasFiltradas = useMemo(() => ventas.filter((venta) => {
     const cliente = obtenerCliente(venta.clienteId)
 
     const texto = `
@@ -181,10 +190,17 @@ function Ventas() {
       ${cliente?.apellido}
     `.toLowerCase()
 
-    return texto.includes(busqueda.toLowerCase())
-  })
+    return texto.includes(busqueda.trim().toLowerCase())
+  }), [ventas, busqueda, clientes])
+
+  const mostrarMensaje = (texto, tipo = 'error') => {
+    setMensaje({ texto, tipo })
+  }
+
+  const limpiarMensaje = () => setMensaje(null)
 
   const abrirNuevaVenta = () => {
+    limpiarMensaje()
     setFormulario(ventaVacia)
     setCarrito([])
     setVentaSeleccionada(null)
@@ -192,11 +208,13 @@ function Ventas() {
   }
 
   const abrirVerVenta = (venta) => {
+    limpiarMensaje()
     setVentaSeleccionada(venta)
     setMostrarFormulario(false)
   }
 
   const cerrarPanel = () => {
+    limpiarMensaje()
     setFormulario(ventaVacia)
     setCarrito([])
     setVentaSeleccionada(null)
@@ -205,6 +223,7 @@ function Ventas() {
 
   const manejarCambio = (e) => {
     const { name, value, type, checked } = e.target
+    limpiarMensaje()
 
     if (name === 'cantidad') {
       setFormulario({
@@ -241,7 +260,7 @@ function Ventas() {
 
   const agregarProducto = () => {
     if (!formulario.productoId || !formulario.loteId || !formulario.cantidad) {
-      alert('Seleccioná producto, lote y cantidad.')
+      mostrarMensaje('Seleccioná producto, lote y cantidad.')
       return
     }
 
@@ -249,29 +268,29 @@ function Ventas() {
     const lote = obtenerLote(formulario.loteId)
 
     if (!producto) {
-      alert('Producto no encontrado.')
+      mostrarMensaje('Producto no encontrado.')
       return
     }
 
     if (!producto.estado) {
-      alert('Este producto está inactivo y no se puede vender.')
+      mostrarMensaje('Este producto está inactivo y no se puede vender.')
       return
     }
 
     if (!lote) {
-      alert('Lote no encontrado.')
+      mostrarMensaje('Lote no encontrado.')
       return
     }
 
     if (loteEstaVencido(lote)) {
-      alert('No se puede vender este producto porque el lote está vencido.')
+      mostrarMensaje('No se puede vender este producto porque el lote está vencido.')
       return
     }
 
     const cantidadSolicitada = Number(formulario.cantidad)
 
     if (cantidadSolicitada <= 0) {
-      alert('La cantidad debe ser mayor a cero.')
+      mostrarMensaje('La cantidad debe ser mayor a cero.')
       return
     }
 
@@ -281,7 +300,7 @@ function Ventas() {
     const cantidadTotal = cantidadYaAgregada + cantidadSolicitada
 
     if (cantidadTotal > Number(lote.cantidad)) {
-      alert('No hay stock suficiente en este lote.')
+      mostrarMensaje('No hay stock suficiente en este lote.')
       return
     }
 
@@ -289,7 +308,7 @@ function Ventas() {
       productoRequiereAutorizacion(producto) &&
       !formulario.autorizacionVeterinaria
     ) {
-      alert(
+      mostrarMensaje(
         'Este producto requiere autorización veterinaria o receta antes de venderse.'
       )
       return
@@ -337,6 +356,7 @@ function Ventas() {
       cantidad: '1',
       autorizacionVeterinaria: false,
     })
+    mostrarMensaje('Producto agregado correctamente.', 'exito')
   }
 
   const quitarProducto = (loteId) => {
@@ -349,12 +369,12 @@ function Ventas() {
     e.preventDefault()
 
     if (!formulario.clienteId || !formulario.fecha) {
-      alert('Seleccioná cliente y fecha.')
+      mostrarMensaje('Seleccioná cliente y fecha.')
       return
     }
 
     if (carrito.length === 0) {
-      alert('Agregá al menos un producto a la venta.')
+      mostrarMensaje('Agregá al menos un producto a la venta.')
       return
     }
 
@@ -365,7 +385,7 @@ function Ventas() {
     })
 
     if (hayLoteVencido) {
-      alert('La venta contiene un lote vencido. No se puede registrar.')
+      mostrarMensaje('La venta contiene un lote vencido. No se puede registrar.')
       return
     }
 
@@ -374,7 +394,7 @@ function Ventas() {
     )
 
     if (hayProductoRestringidoSinAutorizacion) {
-      alert('Hay productos que requieren autorización veterinaria.')
+      mostrarMensaje('Hay productos que requieren autorización veterinaria.')
       return
     }
 
@@ -421,13 +441,17 @@ function Ventas() {
 
     cerrarPanel()
     setVentaSeleccionada(nuevaVenta)
+    mostrarMensaje('Venta registrada correctamente.', 'exito')
   }
 
-  const eliminarVenta = (id) => {
-    const confirmar = window.confirm('¿Seguro que querés eliminar esta venta?')
+  const solicitarEliminarVenta = (venta) => {
+    setVentaAEliminar(venta)
+  }
 
-    if (!confirmar) return
+  const eliminarVenta = () => {
+    if (!ventaAEliminar) return
 
+    const id = ventaAEliminar.id
     const detallesDeVenta = obtenerDetallesVenta(id)
 
     const stockRestaurado = stock.map((itemStock) => {
@@ -455,6 +479,9 @@ function Ventas() {
     if (ventaSeleccionada?.id === id) {
       cerrarPanel()
     }
+
+    setVentaAEliminar(null)
+    mostrarMensaje('Venta eliminada y stock restaurado.', 'exito')
   }
 
   const crearHtmlComprobante = (venta) => {
@@ -579,7 +606,7 @@ function Ventas() {
     const ventana = window.open('', '_blank')
 
     if (!ventana) {
-      alert('El navegador bloqueó la ventana de impresión.')
+      mostrarMensaje('El navegador bloqueó la ventana de impresión.')
       return
     }
 
@@ -679,11 +706,27 @@ function Ventas() {
           <p>Registro de ventas, lotes, comprobantes y pagos</p>
         </div>
 
-        <button className="btn-nueva-venta" onClick={abrirNuevaVenta}>
+        <button type="button" className="btn-nueva-venta" onClick={abrirNuevaVenta}>
           <FaPlus />
           Nueva Venta
         </button>
       </div>
+
+      {mensaje && (
+        <div
+          className={`mensaje-ventas ${mensaje.tipo}`}
+          role={mensaje.tipo === 'error' ? 'alert' : 'status'}
+        >
+          <span>{mensaje.texto}</span>
+          <button
+            type="button"
+            onClick={limpiarMensaje}
+            aria-label="Cerrar mensaje"
+          >
+            <FaXmark />
+          </button>
+        </div>
+      )}
 
       <div className="ventas-content">
         <div className="ventas-main-card">
@@ -763,6 +806,7 @@ function Ventas() {
                             className="btn-accion ver"
                             onClick={() => abrirVerVenta(venta)}
                             title="Ver venta"
+                            aria-label="Ver venta"
                           >
                             <FaEye />
                           </button>
@@ -771,6 +815,7 @@ function Ventas() {
                             className="btn-accion pdf"
                             onClick={() => descargarPdf(venta)}
                             title="Descargar PDF"
+                            aria-label="Descargar comprobante PDF"
                           >
                             <FaFilePdf />
                           </button>
@@ -779,14 +824,16 @@ function Ventas() {
                             className="btn-accion imprimir"
                             onClick={() => imprimirComprobante(venta)}
                             title="Imprimir comprobante"
+                            aria-label="Imprimir comprobante"
                           >
                             <FaPrint />
                           </button>
 
                           <button
                             className="btn-accion eliminar"
-                            onClick={() => eliminarVenta(venta.id)}
+                            onClick={() => solicitarEliminarVenta(venta)}
                             title="Eliminar venta"
+                            aria-label="Eliminar venta"
                           >
                             <FaTrash />
                           </button>
@@ -810,7 +857,7 @@ function Ventas() {
 
         {(mostrarFormulario || ventaSeleccionada) && (
           <aside className="ventas-side-card">
-            <button className="btn-cerrar" onClick={cerrarPanel}>
+            <button type="button" className="btn-cerrar" onClick={cerrarPanel} aria-label="Cerrar panel">
               <FaXmark />
             </button>
 
@@ -820,8 +867,9 @@ function Ventas() {
                 <p>Seleccioná cliente, producto, lote y método de pago</p>
 
                 <form className="venta-form" onSubmit={guardarVenta}>
-                  <label>Cliente</label>
+                  <label htmlFor="venta-cliente">Cliente</label>
                   <select
+                    id="venta-cliente"
                     name="clienteId"
                     value={formulario.clienteId}
                     onChange={manejarCambio}
@@ -835,8 +883,9 @@ function Ventas() {
                     ))}
                   </select>
 
-                  <label>Fecha</label>
+                  <label htmlFor="venta-fecha">Fecha</label>
                   <input
+                    id="venta-fecha"
                     type="date"
                     name="fecha"
                     value={formulario.fecha}
@@ -846,8 +895,9 @@ function Ventas() {
                   <div className="venta-productos-box">
                     <h3>Selección de productos</h3>
 
-                    <label>Producto</label>
+                    <label htmlFor="venta-producto">Producto</label>
                     <select
+                      id="venta-producto"
                       name="productoId"
                       value={formulario.productoId}
                       onChange={manejarCambio}
@@ -878,8 +928,9 @@ function Ventas() {
                         </div>
                       )}
 
-                    <label>Lote</label>
+                    <label htmlFor="venta-lote">Lote</label>
                     <select
+                      id="venta-lote"
                       name="loteId"
                       value={formulario.loteId}
                       onChange={manejarCambio}
@@ -919,8 +970,9 @@ function Ventas() {
                       </div>
                     )}
 
-                    <label>Cantidad</label>
+                    <label htmlFor="venta-cantidad">Cantidad</label>
                     <input
+                      id="venta-cantidad"
                       type="text"
                       inputMode="numeric"
                       name="cantidad"
@@ -998,8 +1050,9 @@ function Ventas() {
                     </div>
                   </div>
 
-                  <label>Método de pago</label>
+                  <label htmlFor="venta-metodo-pago">Método de pago</label>
                   <select
+                    id="venta-metodo-pago"
                     name="metodoPago"
                     value={formulario.metodoPago}
                     onChange={manejarCambio}
@@ -1010,8 +1063,9 @@ function Ventas() {
                     <option value="Transferencia">Transferencia</option>
                   </select>
 
-                  <label>Estado</label>
+                  <label htmlFor="venta-estado">Estado</label>
                   <select
+                    id="venta-estado"
                     name="estado"
                     value={formulario.estado}
                     onChange={manejarCambio}
@@ -1122,6 +1176,46 @@ function Ventas() {
           </aside>
         )}
       </div>
+
+      {ventaAEliminar && (
+        <div className="modal-overlay" role="presentation">
+          <div
+            className="modal-confirmacion"
+            role="dialog"
+            aria-modal="true"
+            aria-labelledby="titulo-eliminar-venta"
+          >
+            <div className="modal-icono">
+              <FaTriangleExclamation />
+            </div>
+
+            <h3 id="titulo-eliminar-venta">Eliminar venta</h3>
+            <p>
+              ¿Seguro que querés eliminar esta venta? El stock de los productos
+              se restaurará automáticamente.
+            </p>
+
+            <div className="modal-acciones">
+              <button
+                type="button"
+                className="btn-modal-cancelar"
+                onClick={() => setVentaAEliminar(null)}
+              >
+                Cancelar
+              </button>
+
+              <button
+                type="button"
+                className="btn-modal-eliminar"
+                onClick={eliminarVenta}
+              >
+                <FaTrash />
+                Eliminar venta
+              </button>
+            </div>
+          </div>
+        </div>
+      )}
     </section>
   )
 }

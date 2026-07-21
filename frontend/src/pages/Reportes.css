@@ -29,16 +29,23 @@
 }
 
 .reporte-card {
-    height: 112px;
+    min-height: 112px;
     background-color: #ffffff;
     border-radius: 12px;
     padding: 16px;
-    box-shadow: 0px 8px 18px rgba(0, 0, 0, 0.12);
-
+    box-shadow: 0 8px 18px rgba(0, 0, 0, 0.12);
     display: flex;
     align-items: center;
     justify-content: space-between;
     gap: 14px;
+    transition:
+        transform 0.2s ease,
+        box-shadow 0.2s ease;
+}
+
+.reporte-card:hover {
+    transform: translateY(-2px);
+    box-shadow: 0 11px 24px rgba(0, 0, 0, 0.14);
 }
 
 .reporte-card p {
@@ -54,7 +61,8 @@
     color: #1d2944;
     font-size: 28px;
     font-weight: 800;
-    line-height: 1;
+    line-height: 1.15;
+    overflow-wrap: anywhere;
 }
 
 .reporte-card span {
@@ -81,11 +89,27 @@
     background-color: #ffffff;
     border-radius: 12px;
     padding: 18px;
-    box-shadow: 0px 8px 18px rgba(0, 0, 0, 0.12);
+    box-shadow: 0 8px 18px rgba(0, 0, 0, 0.12);
+    min-width: 0;
+}
+
+.reporte-panel {
+    transition:
+        transform 0.2s ease,
+        box-shadow 0.2s ease;
+}
+
+.reporte-panel:hover {
+    transform: translateY(-2px);
+    box-shadow: 0 11px 24px rgba(0, 0, 0, 0.14);
 }
 
 .reporte-panel.alerta {
     border-left: 5px solid #d97706;
+}
+
+.reporte-panel.alerta .reporte-panel-header svg {
+    color: #d97706;
 }
 
 .reporte-panel-header {
@@ -98,6 +122,7 @@
 .reporte-panel-header svg {
     color: #2f8c80;
     font-size: 20px;
+    min-width: 20px;
 }
 
 .reporte-panel-header h2 {
@@ -118,7 +143,6 @@
     align-items: center;
     justify-content: space-between;
     gap: 12px;
-
     padding-bottom: 10px;
     border-bottom: 1px solid #eeeeee;
 }
@@ -138,6 +162,7 @@
     color: #1d2944;
     font-size: 18px;
     font-weight: 800;
+    white-space: nowrap;
 }
 
 .reportes-bottom-grid {
@@ -146,8 +171,14 @@
     gap: 18px;
 }
 
+.reporte-tabla-wrapper {
+    width: 100%;
+    overflow-x: auto;
+}
+
 .reporte-tabla {
     width: 100%;
+    min-width: 520px;
     border-collapse: collapse;
 }
 
@@ -156,7 +187,6 @@
     font-size: 14px;
     font-weight: 600;
     text-align: left;
-
     padding: 11px 8px;
     border-bottom: 1px solid #eeeeee;
 }
@@ -165,9 +195,20 @@
     color: #1d2944;
     font-size: 14px;
     font-weight: 400;
-
     padding: 12px 8px;
     border-bottom: 1px solid #eeeeee;
+}
+
+.reporte-tabla tbody tr {
+    transition: background-color 0.2s ease;
+}
+
+.reporte-tabla tbody tr:hover {
+    background-color: #faf8f4;
+}
+
+.reporte-tabla tbody tr:last-child td {
+    border-bottom: none;
 }
 
 .sin-resultados {
@@ -178,11 +219,11 @@
 
 @media (max-width: 1200px) {
     .reportes-stats {
-        grid-template-columns: repeat(2, 1fr);
+        grid-template-columns: repeat(2, minmax(0, 1fr));
     }
 
     .reportes-grid {
-        grid-template-columns: repeat(2, 1fr);
+        grid-template-columns: repeat(2, minmax(0, 1fr));
     }
 
     .reportes-bottom-grid {
@@ -202,5 +243,37 @@
 
     .reportes-header p {
         font-size: 16px;
+    }
+
+    .reporte-card {
+        min-height: 104px;
+    }
+
+    .reporte-panel,
+    .reporte-tabla-card {
+        padding: 15px;
+    }
+}
+
+@media (max-width: 480px) {
+    .reporte-card {
+        align-items: flex-start;
+    }
+
+    .reporte-card strong {
+        font-size: 24px;
+    }
+
+    .reporte-icon {
+        font-size: 31px;
+        min-width: 31px;
+    }
+
+    .reporte-panel-header h2 {
+        font-size: 17px;
+    }
+
+    .reporte-item {
+        align-items: flex-start;
     }
 }

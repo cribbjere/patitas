@@ -1,3 +1,4 @@
+import { useMemo } from 'react'
 import {
   FaUsers,
   FaPaw,
@@ -25,45 +26,148 @@ import {
 
 import './Reportes.css'
 
+function normalizarFecha(fecha) {
+  if (!fecha) return null
+
+  const fechaNormalizada = new Date(`${fecha}T00:00:00`)
+
+  return Number.isNaN(fechaNormalizada.getTime()) ? null : fechaNormalizada
+}
+
+function formatearFecha(fecha) {
+  const fechaValida = normalizarFecha(fecha)
+
+  if (!fechaValida) return 'Sin fecha'
+
+  return new Intl.DateTimeFormat('es-AR').format(fechaValida)
+}
+
+function obtenerDiasParaVencer(fechaVencimiento) {
+  const vencimiento = normalizarFecha(fechaVencimiento)
+
+  if (!vencimiento) return null
+
+  const hoy = new Date()
+  hoy.setHours(0, 0, 0, 0)
+
+  vencimiento.setHours(0, 0, 0, 0)
+
+  return Math.ceil((vencimiento - hoy) / (1000 * 60 * 60 * 24))
+}
+
 function Reportes() {
-  const formatoDinero = new Intl.NumberFormat('es-AR', {
-    style: 'currency',
-    currency: 'ARS',
-    maximumFractionDigits: 0,
-  })
+  const formatoDinero = useMemo(
+    () =>
+      new Intl.NumberFormat('es-AR', {
+        style: 'currency',
+        currency: 'ARS',
+        maximumFractionDigits: 0,
+      }),
+    []
+  )
 
-  const totalVentas = ventas.reduce((total, venta) => total + venta.total, 0)
+  const totalVentas = useMemo(
+    () => ventas.reduce((total, venta) => total + Number(venta.total || 0), 0),
+    []
+  )
 
-  const turnosProgramados = turnos.filter(
-    (turno) => turno.estado === 'Programado' || !turno.estado
-  ).length
+  const turnosProgramados = useMemo(
+    () =>
+      turnos.filter(
+        (turno) => turno.estado === 'Programado' || !turno.estado
+      ).length,
+    []
+  )
 
-  const turnosCancelados = turnos.filter(
-    (turno) => turno.estado === 'Cancelado'
-  ).length
+  const turnosCancelados = useMemo(
+    () => turnos.filter((turno) => turno.estado === 'Cancelado').length,
+    []
+  )
 
-  const productosActivos = productos.filter((producto) => producto.estado).length
+  const productosActivos = useMemo(
+    () => productos.filter((producto) => producto.estado).length,
+    []
+  )
 
-  const productosBajoStock = stock.filter((item) => {
-    return Number(item.cantidad) > 0 && Number(item.cantidad) <= Number(item.stockMinimo)
-  })
+  const productosBajoStock = useMemo(
+    () =>
+      stock.filter((item) => {
+        const cantidad = Number(item.cantidad)
+        const stockMinimo = Number(item.stockMinimo)
 
-  const productosSinStock = stock.filter((item) => Number(item.cantidad) === 0)
+        return cantidad > 0 && cantidad <= stockMinimo
+      }),
+    []
+  )
 
-  const proximasVacunas = vacunaciones.filter((vacunacion) => {
-    return vacunacion.proximaDosis || vacunacion.fecha
-  })
+  const productosSinStock = useMemo(
+    () => stock.filter((item) => Number(item.cantidad) <= 0),
+    []
+  )
 
-  const serviciosRealizados = serviciosHigiene.filter(
-    (servicio) => servicio.estado === 'Realizado'
-  ).length
+  const productosVencidos = useMemo(
+    () =>
+      stock.filter((item) => {
+        const dias = obtenerDiasParaVencer(item.fechaVencimiento)
+        return dias !== null && dias < 0
+      }),
+    []
+  )
 
-  const serviciosPendientes = serviciosHigiene.filter(
-    (servicio) => servicio.estado === 'Pendiente'
-  ).length
+  const productosProximosAVencer = useMemo(
+    () =>
+      stock.filter((item) => {
+        const dias = obtenerDiasParaVencer(item.fechaVencimiento)
+        return dias !== null && dias >= 0 && dias <= 30
+      }),
+    []
+  )
+
+  const proximasVacunas = useMemo(() => {
+    const hoy = new Date()
+    hoy.setHours(0, 0, 0, 0)
+
+    return vacunaciones
+      .map((vacunacion) => ({
+        ...vacunacion,
+        fechaReporte: vacunacion.proximaDosis || vacunacion.fecha,
+      }))
+      .filter((vacunacion) => {
+        const fecha = normalizarFecha(vacunacion.fechaReporte)
+        return fecha && fecha >= hoy
+      })
+      .sort((a, b) => {
+        const fechaA = normalizarFecha(a.fechaReporte)
+        const fechaB = normalizarFecha(b.fechaReporte)
+
+        return fechaA - fechaB
+      })
+  }, [])
+
+  const serviciosRealizados = useMemo(
+    () =>
+      serviciosHigiene.filter((servicio) => servicio.estado === 'Realizado')
+        .length,
+    []
+  )
+
+  const serviciosPendientes = useMemo(
+    () =>
+      serviciosHigiene.filter((servicio) => servicio.estado === 'Pendiente')
+        .length,
+    []
+  )
+
+  const porcentajeProductosActivos = productos.length
+    ? Math.round((productosActivos / productos.length) * 100)
+    : 0
 
   const obtenerProducto = (productoId) => {
     return productos.find((producto) => producto.id === productoId)
+  }
+
+  const obtenerMascota = (mascotaId) => {
+    return mascotas.find((mascota) => mascota.id === mascotaId)
   }
 
   return (
@@ -76,51 +180,51 @@ function Reportes() {
       </div>
 
       <div className="reportes-stats">
-        <div className="reporte-card">
+        <article className="reporte-card">
           <div>
             <p>Clientes</p>
             <strong>{clientes.length}</strong>
             <span>Total registrados</span>
           </div>
 
-          <FaUsers className="reporte-icon" />
-        </div>
+          <FaUsers className="reporte-icon" aria-hidden="true" />
+        </article>
 
-        <div className="reporte-card">
+        <article className="reporte-card">
           <div>
             <p>Mascotas</p>
             <strong>{mascotas.length}</strong>
             <span>Asociadas a clientes</span>
           </div>
 
-          <FaPaw className="reporte-icon" />
-        </div>
+          <FaPaw className="reporte-icon" aria-hidden="true" />
+        </article>
 
-        <div className="reporte-card">
+        <article className="reporte-card">
           <div>
             <p>Turnos</p>
             <strong>{turnos.length}</strong>
             <span>{turnosProgramados} programados</span>
           </div>
 
-          <FaCalendarDays className="reporte-icon" />
-        </div>
+          <FaCalendarDays className="reporte-icon" aria-hidden="true" />
+        </article>
 
-        <div className="reporte-card">
+        <article className="reporte-card">
           <div>
             <p>Ventas</p>
             <strong>{formatoDinero.format(totalVentas)}</strong>
             <span>Total registrado</span>
           </div>
 
-          <FaCashRegister className="reporte-icon" />
-        </div>
+          <FaCashRegister className="reporte-icon" aria-hidden="true" />
+        </article>
       </div>
 
       <div className="reportes-grid">
-        <div className="reporte-panel">
+        <article className="reporte-panel">
           <div className="reporte-panel-header">
-            <FaStethoscope />
+            <FaStethoscope aria-hidden="true" />
             <h2>Actividad clínica</h2>
           </div>
 
@@ -140,11 +244,11 @@ function Reportes() {
               <strong>{proximasVacunas.length}</strong>
             </div>
           </div>
-        </div>
+        </article>
 
-        <div className="reporte-panel">
+        <article className="reporte-panel">
           <div className="reporte-panel-header">
-            <FaScissors />
+            <FaScissors aria-hidden="true" />
             <h2>Servicios de higiene</h2>
           </div>
 
@@ -164,11 +268,11 @@ function Reportes() {
               <strong>{serviciosPendientes}</strong>
             </div>
           </div>
-        </div>
+        </article>
 
-        <div className="reporte-panel">
+        <article className="reporte-panel">
           <div className="reporte-panel-header">
-            <FaBoxOpen />
+            <FaBoxOpen aria-hidden="true" />
             <h2>Productos</h2>
           </div>
 
@@ -184,27 +288,37 @@ function Reportes() {
             </div>
 
             <div className="reporte-item">
-              <span>Registros de stock</span>
-              <strong>{stock.length}</strong>
+              <span>Porcentaje activos</span>
+              <strong>{porcentajeProductosActivos}%</strong>
             </div>
           </div>
-        </div>
+        </article>
 
-        <div className="reporte-panel alerta">
+        <article className="reporte-panel alerta">
           <div className="reporte-panel-header">
-            <FaTriangleExclamation />
-            <h2>Alertas de stock</h2>
+            <FaTriangleExclamation aria-hidden="true" />
+            <h2>Alertas</h2>
           </div>
 
           <div className="reporte-lista">
             <div className="reporte-item">
-              <span>Productos con bajo stock</span>
+              <span>Bajo stock</span>
               <strong>{productosBajoStock.length}</strong>
             </div>
 
             <div className="reporte-item">
-              <span>Productos sin stock</span>
+              <span>Sin stock</span>
               <strong>{productosSinStock.length}</strong>
+            </div>
+
+            <div className="reporte-item">
+              <span>Próximos a vencer</span>
+              <strong>{productosProximosAVencer.length}</strong>
+            </div>
+
+            <div className="reporte-item">
+              <span>Vencidos</span>
+              <strong>{productosVencidos.length}</strong>
             </div>
 
             <div className="reporte-item">
@@ -212,81 +326,91 @@ function Reportes() {
               <strong>{turnosCancelados}</strong>
             </div>
           </div>
-        </div>
+        </article>
       </div>
 
       <div className="reportes-bottom-grid">
-        <div className="reporte-tabla-card">
+        <article className="reporte-tabla-card">
           <div className="reporte-panel-header">
-            <FaBoxesStacked />
+            <FaBoxesStacked aria-hidden="true" />
             <h2>Productos con bajo stock</h2>
           </div>
 
-          <table className="reporte-tabla">
-            <thead>
-              <tr>
-                <th>Producto</th>
-                <th>Cantidad</th>
-                <th>Stock mínimo</th>
-              </tr>
-            </thead>
-
-            <tbody>
-              {productosBajoStock.map((item) => {
-                const producto = obtenerProducto(item.productoId)
-
-                return (
-                  <tr key={item.id}>
-                    <td>{producto?.descripcion}</td>
-                    <td>{item.cantidad}</td>
-                    <td>{item.stockMinimo}</td>
-                  </tr>
-                )
-              })}
-
-              {productosBajoStock.length === 0 && (
+          <div className="reporte-tabla-wrapper">
+            <table className="reporte-tabla">
+              <thead>
                 <tr>
-                  <td colSpan="3" className="sin-resultados">
-                    No hay productos con bajo stock.
-                  </td>
+                  <th scope="col">Producto</th>
+                  <th scope="col">Cantidad</th>
+                  <th scope="col">Stock mínimo</th>
                 </tr>
-              )}
-            </tbody>
-          </table>
-        </div>
+              </thead>
 
-        <div className="reporte-tabla-card">
+              <tbody>
+                {productosBajoStock.map((item) => {
+                  const producto = obtenerProducto(item.productoId)
+
+                  return (
+                    <tr key={item.id}>
+                      <td>{producto?.descripcion || 'Producto no encontrado'}</td>
+                      <td>{item.cantidad}</td>
+                      <td>{item.stockMinimo}</td>
+                    </tr>
+                  )
+                })}
+
+                {productosBajoStock.length === 0 && (
+                  <tr>
+                    <td colSpan="3" className="sin-resultados">
+                      No hay productos con bajo stock.
+                    </td>
+                  </tr>
+                )}
+              </tbody>
+            </table>
+          </div>
+        </article>
+
+        <article className="reporte-tabla-card">
           <div className="reporte-panel-header">
-            <FaSyringe />
+            <FaSyringe aria-hidden="true" />
             <h2>Próximas vacunaciones</h2>
           </div>
 
-          <table className="reporte-tabla">
-            <thead>
-              <tr>
-                <th>Mascota</th>
-                <th>Vacuna</th>
-                <th>Fecha</th>
-              </tr>
-            </thead>
+          <div className="reporte-tabla-wrapper">
+            <table className="reporte-tabla">
+              <thead>
+                <tr>
+                  <th scope="col">Mascota</th>
+                  <th scope="col">Vacuna</th>
+                  <th scope="col">Fecha</th>
+                </tr>
+              </thead>
 
-            <tbody>
-              {vacunaciones.map((vacunacion) => {
-                const mascota = mascotas.find(
-                  (item) => item.id === vacunacion.mascotaId
-                )
+              <tbody>
+                {proximasVacunas.map((vacunacion) => {
+                  const mascota = obtenerMascota(vacunacion.mascotaId)
 
-                return (
-                  <tr key={vacunacion.id}>
-                    <td>{mascota?.nombre}</td>
-                    <td>{vacunacion.vacuna}</td>
-                    <td>{vacunacion.proximaDosis || vacunacion.fecha}</td>
+                  return (
+                    <tr key={vacunacion.id}>
+                      <td>{mascota?.nombre || 'Mascota no encontrada'}</td>
+                      <td>{vacunacion.vacuna || 'Sin especificar'}</td>
+                      <td>{formatearFecha(vacunacion.fechaReporte)}</td>
+                    </tr>
+                  )
+                })}
+
+                {proximasVacunas.length === 0 && (
+                  <tr>
+                    <td colSpan="3" className="sin-resultados">
+                      No hay próximas vacunaciones registradas.
+                    </td>
                   </tr>
-                )
-              })}
-            </tbody>
-          </table>
-        </div>
+                )}
+              </tbody>
+            </table>
+          </div>
+        </article>
       </div>
     </section>
   )
