@@ -212,3 +212,6 @@
         font-size: 17px;
     }
 }
+.dashboard-stat-card p {
+    text-transform: capitalize;
+}

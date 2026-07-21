@@ -18,16 +18,10 @@
 
 .main-content {
     flex: 1;
-
     min-width: 0;
     min-height: 0;
-
-    padding: 20px;
-
+    background-color: #f4efe7;
+    padding: 18px;
     overflow-x: hidden;
     overflow-y: auto;
-
-    background: #f4efe7;
-
-    box-sizing: border-box;
 }

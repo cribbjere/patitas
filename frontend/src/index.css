@@ -1,156 +1,20 @@
-.calendario-turnos {
-    width: 100%;
-    height: 360px;
+@import url('https://fonts.googleapis.com/css2?family=Poppins:wght@300;400;500;600;700;800;900&display=swap');
 
-    background-color: #ffffff;
-    border-radius: 10px;
-
-    padding: 14px 16px;
-
-    box-shadow: 0px 8px 18px rgba(0, 0, 0, 0.12);
-    overflow: hidden;
-}
-
-.calendar-toolbar {
-    height: 48px;
-
-    display: grid;
-    grid-template-columns: 1fr auto 1fr;
-    align-items: center;
-
-    gap: 12px;
-    margin-bottom: 10px;
-}
-
-.calendar-toolbar-left,
-.calendar-toolbar-right {
-    display: flex;
-    align-items: center;
-    gap: 4px;
-}
-
-.calendar-toolbar-right {
-    justify-content: flex-end;
-}
-
-.calendar-toolbar h3 {
-    color: #1d2944;
-    font-size: 20px;
-    font-weight: 800;
+* {
     margin: 0;
-    text-align: center;
-    white-space: nowrap;
+    padding: 0;
+    box-sizing: border-box;
 }
 
-.calendar-toolbar button {
-    height: 36px;
-
-    border: none;
-    border-radius: 7px;
-
-    background-color: #2f8c80;
-    color: #ffffff;
-
-    padding: 0 13px;
-
-    font-size: 15px;
-    font-weight: 500;
-
-    display: flex;
-    align-items: center;
-    justify-content: center;
-
-    cursor: pointer;
-}
-
-.calendar-toolbar button:hover {
-    background-color: #28776d;
-}
-
-.calendar-box {
+html,
+body,
+#root {
     width: 100%;
-    height: calc(100% - 58px);
-    overflow: hidden;
+    min-height: 100%;
 }
 
-.calendario-turnos .fc {
-    height: 100%;
-    font-family: Arial, Helvetica, sans-serif;
-    font-size: 13px;
-}
-
-.calendario-turnos .fc-scrollgrid {
-    border-radius: 8px;
-    overflow: hidden;
-}
-
-.calendario-turnos .fc-col-header-cell {
-    background-color: #ffffff;
-}
-
-.calendario-turnos .fc-col-header-cell-cushion {
+body {
+    font-family: 'Poppins', Arial, sans-serif;
+    background-color: #f4efe7;
     color: #1d2944;
-    font-size: 13px;
-    font-weight: 800;
-    text-decoration: none;
-}
-
-.calendario-turnos .fc-timegrid-slot-label-cushion {
-    color: #1d2944;
-    font-size: 12px;
-}
-
-.calendario-turnos .fc-timegrid-slot {
-    height: 28px !important;
-}
-
-.calendario-turnos .fc-event {
-    background-color: #2f8c80 !important;
-    border: none !important;
-    border-radius: 6px !important;
-
-    padding: 2px 4px !important;
-
-    color: #ffffff !important;
-    font-size: 12px;
-    font-weight: 600;
-
-    cursor: pointer;
-}
-
-.calendario-turnos .fc-event-title,
-.calendario-turnos .fc-event-time {
-    color: #ffffff !important;
-}
-
-.calendario-turnos .fc-day-today {
-    background-color: rgba(47, 140, 128, 0.08) !important;
-}
-
-.calendario-turnos .fc-scroller {
-    overflow-y: auto !important;
-}
-
-@media (max-width: 1100px) {
-    .calendario-turnos {
-        height: 420px;
-    }
-
-    .calendar-toolbar {
-        height: auto;
-        grid-template-columns: 1fr;
-    }
-
-    .calendar-toolbar-left,
-    .calendar-toolbar-right {
-        justify-content: center;
-    }
-
-    .calendar-toolbar h3 {
-        font-size: 18px;
-    }
-
-    .calendar-box {
-        height: 315px;
-    }
 }
