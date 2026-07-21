@@ -1,4 +1,4 @@
-import { useState } from 'react'
+import { useMemo, useState } from 'react'
 import {
   FaMagnifyingGlass,
   FaPlus,
@@ -9,6 +9,8 @@ import {
   FaXmark,
   FaUserGear,
   FaKey,
+  FaTriangleExclamation,
+  FaCircleCheck,
 } from 'react-icons/fa6'
 
 import { usuarios as usuariosIniciales } from '../data/mockData'
@@ -50,19 +52,36 @@ function Usuarios() {
   const [usuarioSeleccionado, setUsuarioSeleccionado] = useState(null)
   const [modoEdicion, setModoEdicion] = useState(false)
   const [formulario, setFormulario] = useState(usuarioVacio)
+  const [errores, setErrores] = useState({})
+  const [mensaje, setMensaje] = useState(null)
+  const [usuarioAEliminar, setUsuarioAEliminar] = useState(null)
 
-  const usuariosFiltrados = usuarios.filter((usuario) => {
-    const texto = `
-      ${usuario.nombre}
-      ${usuario.usuario}
-      ${usuario.rol}
-      ${usuario.estado ? 'activo' : 'inactivo'}
-    `.toLowerCase()
+  const usuariosFiltrados = useMemo(() => {
+    const termino = busqueda.trim().toLowerCase()
 
-    return texto.includes(busqueda.toLowerCase())
-  })
+    return usuarios.filter((usuario) => {
+      const texto = `
+        ${usuario.nombre}
+        ${usuario.usuario}
+        ${usuario.rol}
+        ${usuario.estado ? 'activo' : 'inactivo'}
+      `.toLowerCase()
+
+      return texto.includes(termino)
+    })
+  }, [usuarios, busqueda])
+
+  const mostrarMensaje = (texto, tipo = 'error') => {
+    setMensaje({ texto, tipo })
+  }
+
+  const limpiarEstados = () => {
+    setErrores({})
+    setMensaje(null)
+  }
 
   const abrirNuevoUsuario = () => {
+    limpiarEstados()
     setFormulario(usuarioVacio)
     setUsuarioSeleccionado(null)
     setModoEdicion(false)
@@ -70,12 +89,14 @@ function Usuarios() {
   }
 
   const abrirVerUsuario = (usuario) => {
+    limpiarEstados()
     setUsuarioSeleccionado(usuario)
     setMostrarFormulario(false)
     setModoEdicion(false)
   }
 
   const abrirEditarUsuario = (usuario) => {
+    limpiarEstados()
     setFormulario({
       nombre: usuario.nombre,
       usuario: usuario.usuario,
@@ -89,6 +110,7 @@ function Usuarios() {
   }
 
   const cerrarPanel = () => {
+    limpiarEstados()
     setFormulario(usuarioVacio)
     setUsuarioSeleccionado(null)
     setMostrarFormulario(false)
@@ -97,89 +119,130 @@ function Usuarios() {
 
   const manejarCambio = (e) => {
     const { name, value, type, checked } = e.target
+    const nuevoValor = type === 'checkbox' ? checked : value
 
-    setFormulario({
-      ...formulario,
-      [name]: type === 'checkbox' ? checked : value,
+    setFormulario((actual) => ({
+      ...actual,
+      [name]: nuevoValor,
+    }))
+
+    if (errores[name]) {
+      setErrores((actuales) => ({
+        ...actuales,
+        [name]: '',
+      }))
+    }
+
+    setMensaje(null)
+  }
+
+  const validarFormulario = () => {
+    const nuevosErrores = {}
+    const nombre = formulario.nombre.trim()
+    const nombreUsuario = formulario.usuario.trim()
+
+    if (!nombre) {
+      nuevosErrores.nombre = 'Ingresá el nombre completo.'
+    } else if (nombre.length < 3) {
+      nuevosErrores.nombre = 'El nombre debe tener al menos 3 caracteres.'
+    }
+
+    if (!nombreUsuario) {
+      nuevosErrores.usuario = 'Ingresá un nombre de usuario.'
+    } else if (nombreUsuario.length < 4) {
+      nuevosErrores.usuario = 'Debe tener al menos 4 caracteres.'
+    } else if (!/^[a-zA-Z0-9._-]+$/.test(nombreUsuario)) {
+      nuevosErrores.usuario =
+        'Usá solo letras, números, punto, guion o guion bajo.'
+    }
+
+    if (!formulario.rol) {
+      nuevosErrores.rol = 'Seleccioná un rol.'
+    }
+
+    const usuarioRepetido = usuarios.some((usuario) => {
+      if (modoEdicion && usuario.id === usuarioSeleccionado?.id) {
+        return false
+      }
+
+      return usuario.usuario.toLowerCase() === nombreUsuario.toLowerCase()
     })
+
+    if (usuarioRepetido) {
+      nuevosErrores.usuario = 'Ya existe un usuario con ese nombre.'
+    }
+
+    setErrores(nuevosErrores)
+
+    return Object.keys(nuevosErrores).length === 0
   }
 
   const guardarUsuario = (e) => {
     e.preventDefault()
 
-    if (!formulario.nombre || !formulario.usuario || !formulario.rol) {
-      alert('Completá nombre, usuario y rol.')
-      return
-    }
+    if (!validarFormulario()) return
 
-    const usuarioRepetido = usuarios.some((usuario) => {
-      if (modoEdicion && usuario.id === usuarioSeleccionado.id) {
-        return false
-      }
-
-      return usuario.usuario.toLowerCase() === formulario.usuario.toLowerCase()
-    })
-
-    if (usuarioRepetido) {
-      alert('Ya existe un usuario con ese nombre de usuario.')
-      return
+    const datosUsuario = {
+      nombre: formulario.nombre.trim(),
+      usuario: formulario.usuario.trim(),
+      rol: formulario.rol,
+      estado: formulario.estado,
     }
 
     if (modoEdicion) {
-      const usuariosActualizados = usuarios.map((usuario) => {
-        if (usuario.id === usuarioSeleccionado.id) {
-          return {
-            id: usuarioSeleccionado.id,
-            nombre: formulario.nombre,
-            usuario: formulario.usuario,
-            rol: formulario.rol,
-            estado: formulario.estado,
-          }
-        }
-
-        return usuario
-      })
-
-      setUsuarios(usuariosActualizados)
-    } else {
-      const nuevoUsuario = {
-        id: Date.now(),
-        nombre: formulario.nombre,
-        usuario: formulario.usuario,
-        rol: formulario.rol,
-        estado: formulario.estado,
-      }
-
-      setUsuarios([...usuarios, nuevoUsuario])
-
-      alert(
-        'Usuario creado correctamente. Contraseña predeterminada: Patitas123'
+      setUsuarios((actuales) =>
+        actuales.map((usuario) =>
+          usuario.id === usuarioSeleccionado.id
+            ? { ...usuario, ...datosUsuario }
+            : usuario
+        )
       )
-    }
 
-    cerrarPanel()
-  }
-
-  const eliminarUsuario = (id) => {
-    const usuario = usuarios.find((item) => item.id === id)
-
-    if (usuario?.rol === 'Administrador') {
-      alert('No se puede eliminar el usuario administrador principal.')
+      cerrarPanel()
+      mostrarMensaje('Usuario actualizado correctamente.', 'exito')
       return
     }
 
-    const confirmar = window.confirm('¿Seguro que querés eliminar este usuario?')
+    const nuevoUsuario = {
+      id: Date.now(),
+      ...datosUsuario,
+    }
 
-    if (!confirmar) return
+    setUsuarios((actuales) => [...actuales, nuevoUsuario])
+    cerrarPanel()
+    mostrarMensaje(
+      'Usuario creado correctamente. Contraseña predeterminada: Patitas123',
+      'exito'
+    )
+  }
 
-    const usuariosActualizados = usuarios.filter((usuario) => usuario.id !== id)
+  const solicitarEliminarUsuario = (usuario) => {
+    if (usuario.rol === 'Administrador') {
+      mostrarMensaje('No se puede eliminar el usuario administrador principal.')
+      return
+    }
 
-    setUsuarios(usuariosActualizados)
+    setUsuarioAEliminar(usuario)
+  }
 
-    if (usuarioSeleccionado?.id === id) {
+  const eliminarUsuario = () => {
+    if (!usuarioAEliminar) return
+
+    setUsuarios((actuales) =>
+      actuales.filter((usuario) => usuario.id !== usuarioAEliminar.id)
+    )
+
+    if (usuarioSeleccionado?.id === usuarioAEliminar.id) {
       cerrarPanel()
     }
+
+    setUsuarioAEliminar(null)
+    mostrarMensaje('Usuario eliminado correctamente.', 'exito')
   }
+
+  const permisosFormulario = permisosPorRol[formulario.rol] || []
+  const permisosSeleccionado =
+    permisosPorRol[usuarioSeleccionado?.rol] || []
 
   return (
     <section className="usuarios-page">
@@ -189,28 +252,58 @@ function Usuarios() {
           <p>Administración de usuarios, roles y permisos</p>
         </div>
 
-        <button className="btn-nuevo-usuario" onClick={abrirNuevoUsuario}>
-          <FaPlus />
+        <button
+          type="button"
+          className="btn-nuevo-usuario"
+          onClick={abrirNuevoUsuario}
+        >
+          <FaPlus aria-hidden="true" />
           Nuevo Usuario
         </button>
       </div>
 
+      {mensaje && (
+        <div
+          className={`mensaje-usuarios ${mensaje.tipo}`}
+          role={mensaje.tipo === 'error' ? 'alert' : 'status'}
+        >
+          <div>
+            {mensaje.tipo === 'exito' ? (
+              <FaCircleCheck aria-hidden="true" />
+            ) : (
+              <FaTriangleExclamation aria-hidden="true" />
+            )}
+            <span>{mensaje.texto}</span>
+          </div>
+
+          <button
+            type="button"
+            onClick={() => setMensaje(null)}
+            aria-label="Cerrar mensaje"
+          >
+            <FaXmark />
+          </button>
+        </div>
+      )}
+
       <div className="usuarios-content">
         <div className="usuarios-main-card">
           <div className="usuarios-toolbar">
-            <div className="usuarios-search">
-              <FaMagnifyingGlass />
+            <label className="usuarios-search">
+              <FaMagnifyingGlass aria-hidden="true" />
 
               <input
-                type="text"
+                type="search"
                 placeholder="Buscar por nombre, usuario, rol o estado"
                 value={busqueda}
                 onChange={(e) => setBusqueda(e.target.value)}
+                aria-label="Buscar usuarios"
               />
-            </div>
+            </label>
 
             <span className="usuarios-total">
-              {usuariosFiltrados.length} usuarios
+              {usuariosFiltrados.length}{' '}
+              {usuariosFiltrados.length === 1 ? 'usuario' : 'usuarios'}
             </span>
           </div>
 
@@ -218,12 +311,12 @@ function Usuarios() {
             <table className="usuarios-table">
               <thead>
                 <tr>
-                  <th>Usuario</th>
-                  <th>Nombre de usuario</th>
-                  <th>Rol</th>
-                  <th>Permisos</th>
-                  <th>Estado</th>
-                  <th>Acciones</th>
+                  <th scope="col">Usuario</th>
+                  <th scope="col">Nombre de usuario</th>
+                  <th scope="col">Rol</th>
+                  <th scope="col">Permisos</th>
+                  <th scope="col">Estado</th>
+                  <th scope="col">Acciones</th>
                 </tr>
               </thead>
 
@@ -233,7 +326,7 @@ function Usuarios() {
                     <td>
                       <div className="usuario-nombre">
                         <div className="usuario-icono">
-                          <FaUserGear />
+                          <FaUserGear aria-hidden="true" />
                         </div>
 
                         <div>
@@ -244,12 +337,8 @@ function Usuarios() {
                     </td>
 
                     <td>{usuario.usuario}</td>
-
                     <td>{usuario.rol}</td>
-
-                    <td>
-                      {permisosPorRol[usuario.rol]?.length || 0} módulos
-                    </td>
+                    <td>{permisosPorRol[usuario.rol]?.length || 0} módulos</td>
 
                     <td>
                       <span
@@ -266,25 +355,31 @@ function Usuarios() {
                     <td>
                       <div className="acciones">
                         <button
+                          type="button"
                           className="btn-accion ver"
                           onClick={() => abrirVerUsuario(usuario)}
                           title="Ver usuario"
+                          aria-label={`Ver usuario ${usuario.nombre}`}
                         >
                           <FaEye />
                         </button>
 
                         <button
+                          type="button"
                           className="btn-accion editar"
                           onClick={() => abrirEditarUsuario(usuario)}
                           title="Editar usuario"
+                          aria-label={`Editar usuario ${usuario.nombre}`}
                         >
                           <FaPen />
                         </button>
 
                         <button
+                          type="button"
                           className="btn-accion eliminar"
-                          onClick={() => eliminarUsuario(usuario.id)}
+                          onClick={() => solicitarEliminarUsuario(usuario)}
                           title="Eliminar usuario"
+                          aria-label={`Eliminar usuario ${usuario.nombre}`}
                         >
                           <FaTrash />
                         </button>
@@ -307,7 +402,12 @@ function Usuarios() {
 
         {(mostrarFormulario || usuarioSeleccionado) && (
           <aside className="usuarios-side-card">
-            <button className="btn-cerrar" onClick={cerrarPanel}>
+            <button
+              type="button"
+              className="btn-cerrar"
+              onClick={cerrarPanel}
+              aria-label="Cerrar panel"
+            >
               <FaXmark />
             </button>
 
@@ -321,28 +421,66 @@ function Usuarios() {
                     : 'Cargá un nuevo usuario con contraseña predeterminada'}
                 </p>
 
-                <form className="usuario-form" onSubmit={guardarUsuario}>
-                  <label>Nombre completo</label>
+                <form
+                  className="usuario-form"
+                  onSubmit={guardarUsuario}
+                  noValidate
+                >
+                  <label htmlFor="usuario-nombre">Nombre completo</label>
                   <input
+                    id="usuario-nombre"
                     type="text"
                     name="nombre"
                     value={formulario.nombre}
                     onChange={manejarCambio}
+                    className={errores.nombre ? 'campo-error' : ''}
+                    aria-invalid={Boolean(errores.nombre)}
+                    aria-describedby={
+                      errores.nombre ? 'error-usuario-nombre' : undefined
+                    }
                   />
+                  {errores.nombre && (
+                    <span
+                      className="mensaje-campo"
+                      id="error-usuario-nombre"
+                    >
+                      {errores.nombre}
+                    </span>
+                  )}
 
-                  <label>Nombre de usuario</label>
+                  <label htmlFor="usuario-username">Nombre de usuario</label>
                   <input
+                    id="usuario-username"
                     type="text"
                     name="usuario"
                     value={formulario.usuario}
                     onChange={manejarCambio}
+                    className={errores.usuario ? 'campo-error' : ''}
+                    aria-invalid={Boolean(errores.usuario)}
+                    aria-describedby={
+                      errores.usuario ? 'error-usuario-username' : undefined
+                    }
                   />
+                  {errores.usuario && (
+                    <span
+                      className="mensaje-campo"
+                      id="error-usuario-username"
+                    >
+                      {errores.usuario}
+                    </span>
+                  )}
 
-                  <label>Rol</label>
+                  <label htmlFor="usuario-rol">Rol</label>
                   <select
+                    id="usuario-rol"
                     name="rol"
                     value={formulario.rol}
                     onChange={manejarCambio}
+                    className={errores.rol ? 'campo-error' : ''}
+                    aria-invalid={Boolean(errores.rol)}
+                    aria-describedby={
+                      errores.rol ? 'error-usuario-rol' : undefined
+                    }
                   >
                     <option value="">Seleccionar rol</option>
                     <option value="Administrador">Administrador</option>
@@ -351,10 +489,15 @@ function Usuarios() {
                     <option value="Ventas">Ventas</option>
                     <option value="Higiene">Higiene</option>
                   </select>
+                  {errores.rol && (
+                    <span className="mensaje-campo" id="error-usuario-rol">
+                      {errores.rol}
+                    </span>
+                  )}
 
                   {!modoEdicion && (
                     <div className="password-info">
-                      <FaKey />
+                      <FaKey aria-hidden="true" />
                       <div>
                         <strong>Contraseña predeterminada</strong>
                         <span>Patitas123</span>
@@ -376,15 +519,15 @@ function Usuarios() {
                     <div className="permisos-preview">
                       <h3>Permisos del rol</h3>
 
-                      {permisosPorRol[formulario.rol].map((permiso) => (
+                      {permisosFormulario.map((permiso) => (
                         <span key={permiso}>{permiso}</span>
                       ))}
                     </div>
                   )}
 
                   <button type="submit" className="btn-guardar">
-                    <FaFloppyDisk />
-                    Guardar Usuario
+                    <FaFloppyDisk aria-hidden="true" />
+                    {modoEdicion ? 'Guardar Cambios' : 'Guardar Usuario'}
                   </button>
                 </form>
               </>
@@ -420,16 +563,17 @@ function Usuarios() {
                 <div className="permisos-preview">
                   <h3>Módulos permitidos</h3>
 
-                  {permisosPorRol[usuarioSeleccionado.rol].map((permiso) => (
+                  {permisosSeleccionado.map((permiso) => (
                     <span key={permiso}>{permiso}</span>
                   ))}
                 </div>
 
                 <button
+                  type="button"
                   className="btn-editar-detalle"
                   onClick={() => abrirEditarUsuario(usuarioSeleccionado)}
                 >
-                  <FaPen />
+                  <FaPen aria-hidden="true" />
                   Editar Usuario
                 </button>
               </>
@@ -437,6 +581,47 @@ function Usuarios() {
           </aside>
         )}
       </div>
+
+      {usuarioAEliminar && (
+        <div className="usuarios-modal-overlay" role="presentation">
+          <div
+            className="usuarios-modal"
+            role="dialog"
+            aria-modal="true"
+            aria-labelledby="titulo-eliminar-usuario"
+          >
+            <div className="usuarios-modal-icono">
+              <FaTriangleExclamation />
+            </div>
+
+            <h3 id="titulo-eliminar-usuario">Eliminar usuario</h3>
+            <p>
+              ¿Seguro que querés eliminar a{' '}
+              <strong>{usuarioAEliminar.nombre}</strong>? Esta acción no se
+              puede deshacer.
+            </p>
+
+            <div className="usuarios-modal-acciones">
+              <button
+                type="button"
+                className="btn-modal-cancelar"
+                onClick={() => setUsuarioAEliminar(null)}
+              >
+                Cancelar
+              </button>
+
+              <button
+                type="button"
+                className="btn-modal-eliminar"
+                onClick={eliminarUsuario}
+              >
+                <FaTrash />
+                Eliminar
+              </button>
+            </div>
+          </div>
+        </div>
+      )}
     </section>
   )
 }
