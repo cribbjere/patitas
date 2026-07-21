@@ -1,4 +1,4 @@
-import { useState } from 'react'
+import { useMemo, useState } from 'react'
 import {
   FaMagnifyingGlass,
   FaPlus,
@@ -8,6 +8,7 @@ import {
   FaFloppyDisk,
   FaXmark,
   FaScissors,
+  FaTriangleExclamation,
 } from 'react-icons/fa6'
 
 import {
@@ -56,6 +57,12 @@ const servicioVacio = {
   observaciones: '',
 }
 
+const formatoDinero = new Intl.NumberFormat('es-AR', {
+  style: 'currency',
+  currency: 'ARS',
+  maximumFractionDigits: 0,
+})
+
 function Higiene() {
   const [clientes] = useState(clientesIniciales)
   const [mascotas] = useState(mascotasIniciales)
@@ -65,15 +72,10 @@ function Higiene() {
   const [servicioSeleccionado, setServicioSeleccionado] = useState(null)
   const [modoEdicion, setModoEdicion] = useState(false)
   const [formulario, setFormulario] = useState(servicioVacio)
-
-  const formatoDinero = new Intl.NumberFormat('es-AR', {
-    style: 'currency',
-    currency: 'ARS',
-    maximumFractionDigits: 0,
-  })
+  const [errorFormulario, setErrorFormulario] = useState('')
 
   const obtenerMascota = (mascotaId) => {
-    return mascotas.find((mascota) => mascota.id === mascotaId)
+    return mascotas.find((mascota) => mascota.id === Number(mascotaId))
   }
 
   const obtenerClienteDeMascota = (mascotaId) => {
@@ -84,28 +86,44 @@ function Higiene() {
     return clientes.find((cliente) => cliente.id === mascota.clienteId)
   }
 
-  const serviciosFiltrados = servicios.filter((servicio) => {
-    const mascota = obtenerMascota(servicio.mascotaId)
-    const cliente = obtenerClienteDeMascota(servicio.mascotaId)
+  const formatearFecha = (fecha) => {
+    if (!fecha) return 'Sin fecha'
 
-    const texto = `
-      ${servicio.fecha}
-      ${servicio.tipoServicio}
-      ${servicio.estado}
-      ${servicio.observaciones}
-      ${mascota?.nombre}
-      ${mascota?.especie}
-      ${cliente?.nombre}
-      ${cliente?.apellido}
-    `.toLowerCase()
+    const fechaLocal = new Date(`${fecha}T00:00:00`)
 
-    return texto.includes(busqueda.toLowerCase())
-  })
+    if (Number.isNaN(fechaLocal.getTime())) return fecha
+
+    return fechaLocal.toLocaleDateString('es-AR')
+  }
+
+  const serviciosFiltrados = useMemo(() => {
+    const termino = busqueda.trim().toLowerCase()
+
+    return servicios.filter((servicio) => {
+      const mascota = obtenerMascota(servicio.mascotaId)
+      const cliente = obtenerClienteDeMascota(servicio.mascotaId)
+
+      const texto = `
+        ${servicio.fecha}
+        ${servicio.tipoServicio}
+        ${servicio.estado}
+        ${servicio.observaciones}
+        ${servicio.importe}
+        ${mascota?.nombre || ''}
+        ${mascota?.especie || ''}
+        ${cliente?.nombre || ''}
+        ${cliente?.apellido || ''}
+      `.toLowerCase()
+
+      return texto.includes(termino)
+    })
+  }, [busqueda, servicios, clientes, mascotas])
 
   const abrirNuevoServicio = () => {
     setFormulario(servicioVacio)
     setServicioSeleccionado(null)
     setModoEdicion(false)
+    setErrorFormulario('')
     setMostrarFormulario(true)
   }
 
@@ -113,6 +131,7 @@ function Higiene() {
     setServicioSeleccionado(servicio)
     setMostrarFormulario(false)
     setModoEdicion(false)
+    setErrorFormulario('')
   }
 
   const abrirEditarServicio = (servicio) => {
@@ -127,6 +146,7 @@ function Higiene() {
 
     setServicioSeleccionado(servicio)
     setModoEdicion(true)
+    setErrorFormulario('')
     setMostrarFormulario(true)
   }
 
@@ -135,60 +155,81 @@ function Higiene() {
     setServicioSeleccionado(null)
     setMostrarFormulario(false)
     setModoEdicion(false)
+    setErrorFormulario('')
   }
 
   const manejarCambio = (e) => {
     const { name, value } = e.target
 
-    setFormulario({
-      ...formulario,
-      [name]: name === 'mascotaId' ? Number(value) : value,
-    })
+    setFormulario((formularioActual) => ({
+      ...formularioActual,
+      [name]: name === 'mascotaId' && value ? Number(value) : value,
+    }))
+
+    if (errorFormulario) {
+      setErrorFormulario('')
+    }
+  }
+
+  const validarFormulario = () => {
+    if (!formulario.mascotaId) {
+      return 'Seleccioná una mascota.'
+    }
+
+    if (!formulario.tipoServicio) {
+      return 'Seleccioná el tipo de servicio.'
+    }
+
+    if (!formulario.fecha) {
+      return 'Ingresá la fecha del servicio.'
+    }
+
+    if (!formulario.importe || Number(formulario.importe) <= 0) {
+      return 'Ingresá un importe válido mayor que cero.'
+    }
+
+    if (!formulario.estado) {
+      return 'Seleccioná el estado del servicio.'
+    }
+
+    return ''
   }
 
   const guardarServicio = (e) => {
     e.preventDefault()
 
-    if (
-      !formulario.mascotaId ||
-      !formulario.fecha ||
-      !formulario.tipoServicio ||
-      !formulario.importe
-    ) {
-      alert('Completá mascota, fecha, tipo de servicio e importe.')
+    const error = validarFormulario()
+
+    if (error) {
+      setErrorFormulario(error)
       return
     }
 
-    if (modoEdicion) {
-      const serviciosActualizados = servicios.map((servicio) => {
-        if (servicio.id === servicioSeleccionado.id) {
-          return {
-            id: servicioSeleccionado.id,
-            mascotaId: formulario.mascotaId,
-            fecha: formulario.fecha,
-            tipoServicio: formulario.tipoServicio,
-            importe: Number(formulario.importe),
-            estado: formulario.estado,
-            observaciones: formulario.observaciones,
-          }
-        }
+    const datosServicio = {
+      mascotaId: Number(formulario.mascotaId),
+      fecha: formulario.fecha,
+      tipoServicio: formulario.tipoServicio,
+      importe: Number(formulario.importe),
+      estado: formulario.estado,
+      observaciones: formulario.observaciones.trim(),
+    }
 
-        return servicio
-      })
-
-      setServicios(serviciosActualizados)
+    if (modoEdicion && servicioSeleccionado) {
+      setServicios((serviciosActuales) =>
+        serviciosActuales.map((servicio) =>
+          servicio.id === servicioSeleccionado.id
+            ? { ...servicio, ...datosServicio }
+            : servicio
+        )
+      )
     } else {
-      const nuevoServicio = {
-        id: Date.now(),
-        mascotaId: formulario.mascotaId,
-        fecha: formulario.fecha,
-        tipoServicio: formulario.tipoServicio,
-        importe: Number(formulario.importe),
-        estado: formulario.estado,
-        observaciones: formulario.observaciones,
-      }
-
-      setServicios([...servicios, nuevoServicio])
+      setServicios((serviciosActuales) => [
+        ...serviciosActuales,
+        {
+          id: Date.now(),
+          ...datosServicio,
+        },
+      ])
     }
 
     cerrarPanel()
@@ -201,15 +242,27 @@ function Higiene() {
 
     if (!confirmar) return
 
-    const serviciosActualizados = servicios.filter(
-      (servicio) => servicio.id !== id
+    setServicios((serviciosActuales) =>
+      serviciosActuales.filter((servicio) => servicio.id !== id)
     )
-
-    setServicios(serviciosActualizados)
 
     if (servicioSeleccionado?.id === id) {
       cerrarPanel()
     }
+  }
+
+  const mascotaSeleccionada = servicioSeleccionado
+    ? obtenerMascota(servicioSeleccionado.mascotaId)
+    : null
+
+  const clienteSeleccionado = servicioSeleccionado
+    ? obtenerClienteDeMascota(servicioSeleccionado.mascotaId)
+    : null
+
+  const claseEstado = (estado) => {
+    if (estado === 'Realizado') return 'estado-servicio realizado'
+    if (estado === 'Cancelado') return 'estado-servicio cancelado'
+    return 'estado-servicio pendiente'
   }
 
   return (
@@ -220,7 +273,11 @@ function Higiene() {
           <p>Registro de servicios de baño, corte y peluquería</p>
         </div>
 
-        <button className="btn-nuevo-servicio" onClick={abrirNuevoServicio}>
+        <button
+          type="button"
+          className="btn-nuevo-servicio"
+          onClick={abrirNuevoServicio}
+        >
           <FaPlus />
           Nuevo Servicio
         </button>
@@ -241,7 +298,8 @@ function Higiene() {
             </div>
 
             <span className="higiene-total">
-              {serviciosFiltrados.length} servicios
+              {serviciosFiltrados.length}{' '}
+              {serviciosFiltrados.length === 1 ? 'servicio' : 'servicios'}
             </span>
           </div>
 
@@ -281,26 +339,20 @@ function Higiene() {
                         </div>
                       </td>
 
-                      <td>{mascota?.nombre}</td>
+                      <td>{mascota?.nombre || 'Sin mascota'}</td>
 
                       <td>
-                        {cliente?.nombre} {cliente?.apellido}
+                        {cliente
+                          ? `${cliente.nombre} ${cliente.apellido}`
+                          : 'Sin dueño'}
                       </td>
 
-                      <td>{servicio.fecha}</td>
+                      <td>{formatearFecha(servicio.fecha)}</td>
 
                       <td>{formatoDinero.format(servicio.importe)}</td>
 
                       <td>
-                        <span
-                          className={
-                            servicio.estado === 'Realizado'
-                              ? 'estado-servicio realizado'
-                              : servicio.estado === 'Cancelado'
-                                ? 'estado-servicio cancelado'
-                                : 'estado-servicio pendiente'
-                          }
-                        >
+                        <span className={claseEstado(servicio.estado)}>
                           {servicio.estado}
                         </span>
                       </td>
@@ -308,25 +360,31 @@ function Higiene() {
                       <td>
                         <div className="acciones">
                           <button
+                            type="button"
                             className="btn-accion ver"
                             onClick={() => abrirVerServicio(servicio)}
                             title="Ver servicio"
+                            aria-label="Ver servicio"
                           >
                             <FaEye />
                           </button>
 
                           <button
+                            type="button"
                             className="btn-accion editar"
                             onClick={() => abrirEditarServicio(servicio)}
                             title="Editar servicio"
+                            aria-label="Editar servicio"
                           >
                             <FaPen />
                           </button>
 
                           <button
+                            type="button"
                             className="btn-accion eliminar"
                             onClick={() => eliminarServicio(servicio.id)}
                             title="Eliminar servicio"
+                            aria-label="Eliminar servicio"
                           >
                             <FaTrash />
                           </button>
@@ -350,7 +408,12 @@ function Higiene() {
 
         {(mostrarFormulario || servicioSeleccionado) && (
           <aside className="higiene-side-card">
-            <button className="btn-cerrar" onClick={cerrarPanel}>
+            <button
+              type="button"
+              className="btn-cerrar"
+              onClick={cerrarPanel}
+              aria-label="Cerrar panel"
+            >
               <FaXmark />
             </button>
 
@@ -365,8 +428,16 @@ function Higiene() {
                 </p>
 
                 <form className="higiene-form" onSubmit={guardarServicio}>
-                  <label>Mascota</label>
+                  {errorFormulario && (
+                    <div className="higiene-form-error" role="alert">
+                      <FaTriangleExclamation />
+                      <span>{errorFormulario}</span>
+                    </div>
+                  )}
+
+                  <label htmlFor="mascotaId">Mascota</label>
                   <select
+                    id="mascotaId"
                     name="mascotaId"
                     value={formulario.mascotaId}
                     onChange={manejarCambio}
@@ -385,8 +456,9 @@ function Higiene() {
                     })}
                   </select>
 
-                  <label>Tipo de servicio</label>
+                  <label htmlFor="tipoServicio">Tipo de servicio</label>
                   <select
+                    id="tipoServicio"
                     name="tipoServicio"
                     value={formulario.tipoServicio}
                     onChange={manejarCambio}
@@ -402,24 +474,30 @@ function Higiene() {
                     </option>
                   </select>
 
-                  <label>Fecha</label>
+                  <label htmlFor="fecha">Fecha</label>
                   <input
+                    id="fecha"
                     type="date"
                     name="fecha"
                     value={formulario.fecha}
                     onChange={manejarCambio}
                   />
 
-                  <label>Importe</label>
+                  <label htmlFor="importe">Importe</label>
                   <input
+                    id="importe"
                     type="number"
                     name="importe"
                     value={formulario.importe}
                     onChange={manejarCambio}
+                    min="1"
+                    step="1"
+                    placeholder="Ejemplo: 12000"
                   />
 
-                  <label>Estado</label>
+                  <label htmlFor="estado">Estado</label>
                   <select
+                    id="estado"
                     name="estado"
                     value={formulario.estado}
                     onChange={manejarCambio}
@@ -429,16 +507,18 @@ function Higiene() {
                     <option value="Cancelado">Cancelado</option>
                   </select>
 
-                  <label>Observaciones</label>
+                  <label htmlFor="observaciones">Observaciones</label>
                   <textarea
+                    id="observaciones"
                     name="observaciones"
                     value={formulario.observaciones}
                     onChange={manejarCambio}
+                    placeholder="Información adicional del servicio"
                   />
 
                   <button type="submit" className="btn-guardar">
                     <FaFloppyDisk />
-                    Guardar Servicio
+                    {modoEdicion ? 'Guardar Cambios' : 'Guardar Servicio'}
                   </button>
                 </form>
               </>
@@ -455,28 +535,21 @@ function Higiene() {
 
                   <div>
                     <span>Mascota</span>
-                    <strong>
-                      {obtenerMascota(servicioSeleccionado.mascotaId)?.nombre}
-                    </strong>
+                    <strong>{mascotaSeleccionada?.nombre || 'Sin mascota'}</strong>
                   </div>
 
                   <div>
                     <span>Dueño</span>
                     <strong>
-                      {
-                        obtenerClienteDeMascota(servicioSeleccionado.mascotaId)
-                          ?.nombre
-                      }{' '}
-                      {
-                        obtenerClienteDeMascota(servicioSeleccionado.mascotaId)
-                          ?.apellido
-                      }
+                      {clienteSeleccionado
+                        ? `${clienteSeleccionado.nombre} ${clienteSeleccionado.apellido}`
+                        : 'Sin dueño'}
                     </strong>
                   </div>
 
                   <div>
                     <span>Fecha</span>
-                    <strong>{servicioSeleccionado.fecha}</strong>
+                    <strong>{formatearFecha(servicioSeleccionado.fecha)}</strong>
                   </div>
 
                   <div>
@@ -488,19 +561,21 @@ function Higiene() {
 
                   <div>
                     <span>Estado</span>
-                    <strong>{servicioSeleccionado.estado}</strong>
+                    <span className={claseEstado(servicioSeleccionado.estado)}>
+                      {servicioSeleccionado.estado}
+                    </span>
                   </div>
 
                   <div>
                     <span>Observaciones</span>
                     <strong>
-                      {servicioSeleccionado.observaciones ||
-                        'Sin observaciones'}
+                      {servicioSeleccionado.observaciones || 'Sin observaciones'}
                     </strong>
                   </div>
                 </div>
 
                 <button
+                  type="button"
                   className="btn-editar-detalle"
                   onClick={() => abrirEditarServicio(servicioSeleccionado)}
                 >

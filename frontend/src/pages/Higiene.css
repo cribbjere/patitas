@@ -30,22 +30,20 @@
     border: none;
     border-radius: 8px;
     padding: 0 18px;
-
     background-color: #2f8c80;
     color: white;
-
     font-size: 15px;
     font-weight: 600;
-
     display: flex;
     align-items: center;
     gap: 9px;
-
     cursor: pointer;
+    transition: background-color 0.2s ease, transform 0.2s ease;
 }
 
 .btn-nuevo-servicio:hover {
     background-color: #28776d;
+    transform: translateY(-1px);
 }
 
 .higiene-content {
@@ -59,7 +57,7 @@
 .higiene-side-card {
     background-color: white;
     border-radius: 12px;
-    box-shadow: 0px 8px 18px rgba(0, 0, 0, 0.12);
+    box-shadow: 0 8px 18px rgba(0, 0, 0, 0.12);
 }
 
 .higiene-main-card {
@@ -78,28 +76,30 @@
 .higiene-search {
     flex: 1;
     height: 42px;
-
     border: 1px solid #d7d7d7;
     border-radius: 8px;
-
     padding: 0 13px;
-
     display: flex;
     align-items: center;
     gap: 10px;
-
     color: #7c849d;
+    background-color: white;
+    transition: border-color 0.2s ease, box-shadow 0.2s ease;
+}
+
+.higiene-search:focus-within {
+    border-color: #2f8c80;
+    box-shadow: 0 0 0 3px rgba(47, 140, 128, 0.12);
 }
 
 .higiene-search input {
     width: 100%;
-
     border: none;
     outline: none;
-
     color: #1d2944;
     font-size: 14px;
     font-family: 'Poppins', sans-serif;
+    background-color: transparent;
 }
 
 .higiene-search input::placeholder {
@@ -121,6 +121,7 @@
 .higiene-table {
     width: 100%;
     border-collapse: collapse;
+    min-width: 900px;
 }
 
 .higiene-table th {
@@ -128,7 +129,6 @@
     font-size: 14px;
     font-weight: 600;
     text-align: left;
-
     padding: 12px 8px;
     border-bottom: 1px solid #eeeeee;
 }
@@ -137,11 +137,17 @@
     color: #1d2944;
     font-size: 14px;
     font-weight: 400;
-
     padding: 14px 8px;
     border-bottom: 1px solid #eeeeee;
-
     vertical-align: middle;
+}
+
+.higiene-table tbody tr {
+    transition: background-color 0.2s ease;
+}
+
+.higiene-table tbody tr:hover {
+    background-color: #f8fbfa;
 }
 
 .servicio-nombre {
@@ -154,16 +160,12 @@
     width: 38px;
     height: 38px;
     min-width: 38px;
-
     border-radius: 50%;
-
     background-color: #dcefe9;
     color: #2f8c80;
-
     display: flex;
     align-items: center;
     justify-content: center;
-
     font-size: 18px;
 }
 
@@ -180,7 +182,6 @@
     margin-top: 3px;
     font-size: 12px;
     font-weight: 400;
-
     max-width: 220px;
     white-space: nowrap;
     overflow: hidden;
@@ -191,12 +192,10 @@
     display: inline-flex;
     align-items: center;
     justify-content: center;
-
     min-width: 86px;
     height: 28px;
-
+    padding: 0 10px;
     border-radius: 8px;
-
     font-size: 13px;
     font-weight: 700;
 }
@@ -225,17 +224,19 @@
 .higiene-page .btn-accion {
     width: 32px;
     height: 32px;
-
     border: none;
     border-radius: 7px;
-
     color: white;
-
     display: flex;
     justify-content: center;
     align-items: center;
-
     cursor: pointer;
+    transition: transform 0.2s ease, opacity 0.2s ease;
+}
+
+.higiene-page .btn-accion:hover {
+    transform: translateY(-1px);
+    opacity: 0.9;
 }
 
 .higiene-page .btn-accion.ver {
@@ -259,24 +260,36 @@
 .higiene-side-card {
     position: relative;
     padding: 22px;
+    max-height: calc(100vh - 125px);
+    overflow-y: auto;
 }
 
 .higiene-page .btn-cerrar {
     position: absolute;
     top: 14px;
     right: 14px;
-
+    width: 34px;
+    height: 34px;
     border: none;
-    background: transparent;
-
+    border-radius: 50%;
+    background-color: #f3f4f6;
     color: #7c849d;
-    font-size: 20px;
-
+    font-size: 18px;
+    display: flex;
+    align-items: center;
+    justify-content: center;
     cursor: pointer;
+    transition: background-color 0.2s ease, color 0.2s ease;
+}
+
+.higiene-page .btn-cerrar:hover {
+    background-color: #fee2e2;
+    color: #b42318;
 }
 
 .higiene-side-card h2 {
     margin: 0;
+    padding-right: 42px;
     color: #1d2944;
     font-size: 24px;
     font-weight: 800;
@@ -294,6 +307,20 @@
     flex-direction: column;
 }
 
+.higiene-form-error {
+    margin-bottom: 16px;
+    padding: 11px 12px;
+    border-left: 4px solid #b42318;
+    border-radius: 8px;
+    background-color: #fff1f1;
+    color: #b42318;
+    font-size: 13px;
+    font-weight: 600;
+    display: flex;
+    align-items: center;
+    gap: 9px;
+}
+
 .higiene-form label {
     color: #1d2944;
     font-size: 14px;
@@ -304,101 +331,99 @@
 .higiene-form input,
 .higiene-form select {
     height: 40px;
-
     border: 1px solid #d7d7d7;
     border-radius: 8px;
-
     padding: 0 12px;
     margin-bottom: 14px;
-
     outline: none;
-
     color: #1d2944;
     font-size: 14px;
     font-family: 'Poppins', sans-serif;
-
     background-color: white;
+    transition: border-color 0.2s ease, box-shadow 0.2s ease;
 }
 
 .higiene-form textarea {
     min-height: 78px;
-
     border: 1px solid #d7d7d7;
     border-radius: 8px;
-
     padding: 10px 12px;
     margin-bottom: 18px;
-
     outline: none;
     resize: vertical;
-
     color: #1d2944;
     font-size: 14px;
     font-family: 'Poppins', sans-serif;
+    transition: border-color 0.2s ease, box-shadow 0.2s ease;
 }
 
 .higiene-form input:focus,
 .higiene-form select:focus,
 .higiene-form textarea:focus {
     border-color: #2f8c80;
+    box-shadow: 0 0 0 3px rgba(47, 140, 128, 0.12);
 }
 
 .higiene-page .btn-guardar,
 .higiene-page .btn-editar-detalle {
     height: 42px;
-
     border: none;
     border-radius: 8px;
-
     background-color: #2f8c80;
     color: white;
-
     font-size: 15px;
     font-weight: 600;
-
     display: flex;
     justify-content: center;
     align-items: center;
     gap: 9px;
-
     cursor: pointer;
+    transition: background-color 0.2s ease, transform 0.2s ease;
 }
 
 .higiene-page .btn-guardar:hover,
 .higiene-page .btn-editar-detalle:hover {
     background-color: #28776d;
+    transform: translateY(-1px);
 }
 
 .servicio-detalle {
     display: flex;
     flex-direction: column;
-    gap: 16px;
-
+    gap: 14px;
     margin-bottom: 22px;
 }
 
-.servicio-detalle div {
-    padding-bottom: 12px;
-    border-bottom: 1px solid #eeeeee;
+.servicio-detalle > div {
+    padding: 12px 13px;
+    border: 1px solid #eeeeee;
+    border-radius: 9px;
+    background-color: #fafafa;
 }
 
-.servicio-detalle span {
+.servicio-detalle > div > span:first-child {
     display: block;
     color: #7c849d;
     font-size: 13px;
     font-weight: 400;
-    margin-bottom: 4px;
+    margin-bottom: 5px;
 }
 
 .servicio-detalle strong {
     color: #1d2944;
     font-size: 15px;
     font-weight: 700;
+    white-space: pre-wrap;
+    overflow-wrap: anywhere;
 }
 
 @media (max-width: 1100px) {
     .higiene-content {
         grid-template-columns: 1fr;
+    }
+
+    .higiene-side-card {
+        max-height: none;
     }
 }
 
@@ -416,5 +441,33 @@
     .higiene-toolbar {
         flex-direction: column;
         align-items: stretch;
+    }
+
+    .higiene-total {
+        align-self: flex-end;
+    }
+
+    .higiene-main-card,
+    .higiene-side-card {
+        border-radius: 10px;
+    }
+}
+
+@media (max-width: 520px) {
+    .higiene-header h1 {
+        font-size: 26px;
+    }
+
+    .higiene-header p {
+        font-size: 15px;
+    }
+
+    .higiene-main-card,
+    .higiene-side-card {
+        padding: 14px;
+    }
+
+    .higiene-side-card h2 {
+        font-size: 21px;
     }
 }
