@@ -1,5 +1,5 @@
 import { crearAlertaSistema } from '../utils/alertasSistema'
-import { useEffect, useState } from 'react'
+import { useEffect, useMemo, useState } from 'react'
 import {
   FaMagnifyingGlass,
   FaPlus,
@@ -39,7 +39,7 @@ function obtenerFecha(fechaCompleta) {
 
 function obtenerHora(fechaCompleta) {
   if (!fechaCompleta) return ''
-  return fechaCompleta.split('T')[1]?.slice(0, 5)
+  return fechaCompleta.split('T')[1]?.slice(0, 5) || ''
 }
 
 function Turnos() {
@@ -52,55 +52,70 @@ function Turnos() {
   const [modoEdicion, setModoEdicion] = useState(false)
   const [formulario, setFormulario] = useState(turnoVacio)
   const [alertaSeguimiento, setAlertaSeguimiento] = useState(null)
+  const [errorFormulario, setErrorFormulario] = useState('')
 
   const obtenerMascota = (mascotaId) => {
-    return mascotas.find((mascota) => mascota.id === mascotaId)
+    return mascotas.find((mascota) => mascota.id === Number(mascotaId))
   }
 
   const obtenerClienteDeMascota = (mascotaId) => {
     const mascota = obtenerMascota(mascotaId)
-
     if (!mascota) return null
-
     return clientes.find((cliente) => cliente.id === mascota.clienteId)
   }
 
+  const turnosFiltrados = useMemo(() => {
+    const textoBusqueda = busqueda.trim().toLowerCase()
+    if (!textoBusqueda) return turnos
+
+    return turnos.filter((turno) => {
+      const mascota = obtenerMascota(turno.mascotaId)
+      const cliente = obtenerClienteDeMascota(turno.mascotaId)
+
+      const texto = `
+        ${turno.motivo || ''}
+        ${turno.estado || 'Programado'}
+        ${turno.fechaInicio || ''}
+        ${mascota?.nombre || ''}
+        ${mascota?.especie || ''}
+        ${cliente?.nombre || ''}
+        ${cliente?.apellido || ''}
+      `.toLowerCase()
+
+      return texto.includes(textoBusqueda)
+    })
+  }, [busqueda, turnos, mascotas, clientes])
+
   const crearAlertaSeguimiento = (turno, tipo) => {
+    if (!turno) return
+
     const mascota = obtenerMascota(turno.mascotaId)
     const cliente = obtenerClienteDeMascota(turno.mascotaId)
 
-    let mensaje = ''
-
-    if (tipo === 'Cancelado') {
-      mensaje =
-        'El turno fue cancelado. Se recomienda contactar al cliente y ofrecer otro horario.'
+    const mensajes = {
+      Cancelado:
+        'El turno fue cancelado. Se recomienda contactar al cliente y ofrecer otro horario.',
+      Ausente:
+        'El cliente no asistió al turno. Se recomienda llamar o enviar un mensaje para reprogramar.',
+      'Vacunación pendiente':
+        'La vacunación no fue realizada. Se recomienda contactar al cliente para coordinar una nueva fecha.',
+      'Turno vencido':
+        'El horario del turno ya pasó y el turno seguía como programado. Se recomienda contactar al cliente para reprogramarlo.',
     }
 
-    if (tipo === 'Ausente') {
-      mensaje =
-        'El cliente no asistió al turno. Se recomienda llamar o enviar un mensaje para reprogramar.'
-    }
+    const mensaje = mensajes[tipo] || 'Se recomienda realizar un seguimiento del turno.'
 
-    if (tipo === 'Vacunación pendiente') {
-      mensaje =
-        'La vacunación no fue realizada. Se recomienda contactar al cliente para coordinar una nueva fecha.'
-    }
+    setAlertaSeguimiento({ turno, mascota, cliente, tipo, mensaje })
 
-    setAlertaSeguimiento({
-      turno,
-      mascota,
-      cliente,
-      tipo,
-      mensaje,
-    })
     crearAlertaSistema({
-  titulo: tipo,
-  mensaje,
-  origen: 'Turnos',
-  cliente: `${cliente?.nombre || ''} ${cliente?.apellido || ''}`.trim(),
-  telefono: cliente?.telefono || '',
-  mascota: mascota?.nombre || '',
-})
+      clave: `${tipo}-${turno.id}`,
+      titulo: tipo,
+      mensaje,
+      origen: 'Turnos',
+      cliente: `${cliente?.nombre || ''} ${cliente?.apellido || ''}`.trim(),
+      telefono: cliente?.telefono || '',
+      mascota: mascota?.nombre || '',
+    })
   }
 
   const cerrarAlertaSeguimiento = () => {
@@ -109,7 +124,6 @@ function Turnos() {
 
   const armarTelefono = (telefono) => {
     if (!telefono) return ''
-
     return telefono.replace(/\D/g, '')
   }
 
@@ -117,7 +131,7 @@ function Turnos() {
     const telefono = armarTelefono(cliente?.telefono)
 
     if (!telefono) {
-      alert('El cliente no tiene teléfono cargado.')
+      window.alert('El cliente no tiene teléfono cargado.')
       return
     }
 
@@ -128,46 +142,32 @@ function Turnos() {
     const telefono = armarTelefono(cliente?.telefono)
 
     if (!telefono) {
-      alert('El cliente no tiene teléfono cargado.')
+      window.alert('El cliente no tiene teléfono cargado.')
       return
     }
 
-    const mensaje = `Hola ${cliente.nombre}, te contactamos de Veterinaria Patitas por el turno de ${mascota?.nombre}. Queríamos coordinar una nueva fecha para ${motivo}.`
+    const mensaje = `Hola ${cliente?.nombre || ''}, te contactamos de Veterinaria Patitas por el turno de ${mascota?.nombre || 'tu mascota'}. Queríamos coordinar una nueva fecha para ${motivo || 'la atención'}.`
 
     window.open(
       `https://wa.me/54${telefono}?text=${encodeURIComponent(mensaje)}`,
-      '_blank'
+      '_blank',
+      'noopener,noreferrer'
     )
   }
-
-  const turnosFiltrados = turnos.filter((turno) => {
-    const mascota = obtenerMascota(turno.mascotaId)
-    const cliente = obtenerClienteDeMascota(turno.mascotaId)
-
-    const texto = `
-      ${turno.motivo}
-      ${turno.estado}
-      ${turno.fechaInicio}
-      ${mascota?.nombre}
-      ${mascota?.especie}
-      ${cliente?.nombre}
-      ${cliente?.apellido}
-    `.toLowerCase()
-
-    return texto.includes(busqueda.toLowerCase())
-  })
 
   const abrirNuevoTurno = () => {
     setFormulario(turnoVacio)
     setTurnoSeleccionado(null)
     setModoEdicion(false)
     setMostrarFormulario(true)
+    setErrorFormulario('')
   }
 
   const abrirVerTurno = (turno) => {
     setTurnoSeleccionado(turno)
     setMostrarFormulario(false)
     setModoEdicion(false)
+    setErrorFormulario('')
   }
 
   const abrirEditarTurno = (turno) => {
@@ -176,7 +176,7 @@ function Turnos() {
       fecha: obtenerFecha(turno.fechaInicio),
       horaInicio: obtenerHora(turno.fechaInicio),
       horaFin: obtenerHora(turno.fechaFin),
-      motivo: turno.motivo,
+      motivo: turno.motivo || '',
       estado: turno.estado || 'Programado',
       observaciones: turno.observaciones || '',
     })
@@ -184,11 +184,11 @@ function Turnos() {
     setTurnoSeleccionado(turno)
     setModoEdicion(true)
     setMostrarFormulario(true)
+    setErrorFormulario('')
   }
 
   const reprogramarDesdeAlerta = () => {
     if (!alertaSeguimiento?.turno) return
-
     abrirEditarTurno(alertaSeguimiento.turno)
     cerrarAlertaSeguimiento()
   }
@@ -198,100 +198,96 @@ function Turnos() {
     setTurnoSeleccionado(null)
     setMostrarFormulario(false)
     setModoEdicion(false)
+    setErrorFormulario('')
   }
 
   const manejarCambio = (e) => {
     const { name, value } = e.target
 
-    setFormulario({
-      ...formulario,
-      [name]: name === 'mascotaId' ? Number(value) : value,
+    setFormulario((formularioActual) => ({
+      ...formularioActual,
+      [name]: name === 'mascotaId' ? (value ? Number(value) : '') : value,
+    }))
+
+    if (errorFormulario) setErrorFormulario('')
+  }
+
+  const validarFormulario = () => {
+    if (!formulario.mascotaId) return 'Seleccioná una mascota.'
+    if (!formulario.fecha) return 'Seleccioná la fecha del turno.'
+    if (!formulario.horaInicio || !formulario.horaFin) {
+      return 'Completá el horario de inicio y finalización.'
+    }
+    if (!formulario.motivo) return 'Seleccioná el motivo del turno.'
+    if (formulario.horaFin <= formulario.horaInicio) {
+      return 'La hora de finalización debe ser posterior a la hora de inicio.'
+    }
+    return ''
+  }
+
+  const comprobarTurnoSuperpuesto = () => {
+    return turnos.some((turno) => {
+      if (modoEdicion && turno.id === turnoSeleccionado?.id) return false
+      if (turno.estado === 'Cancelado' || turno.estado === 'Ausente') return false
+
+      const mismaMascota = Number(turno.mascotaId) === Number(formulario.mascotaId)
+      const mismoDia = obtenerFecha(turno.fechaInicio) === formulario.fecha
+
+      if (!mismaMascota || !mismoDia) return false
+
+      const inicioExistente = obtenerHora(turno.fechaInicio)
+      const finExistente = obtenerHora(turno.fechaFin)
+
+      return (
+        formulario.horaInicio < finExistente &&
+        formulario.horaFin > inicioExistente
+      )
     })
   }
 
   const guardarTurno = (e) => {
     e.preventDefault()
 
-    if (
-      !formulario.mascotaId ||
-      !formulario.fecha ||
-      !formulario.horaInicio ||
-      !formulario.horaFin ||
-      !formulario.motivo
-    ) {
-      alert('Completá mascota, fecha, horario y motivo.')
+    const error = validarFormulario()
+    if (error) {
+      setErrorFormulario(error)
       return
     }
 
-    if (formulario.horaFin <= formulario.horaInicio) {
-      alert('La hora de fin debe ser posterior a la hora de inicio.')
+    if (comprobarTurnoSuperpuesto()) {
+      setErrorFormulario(
+        'Esta mascota ya posee un turno registrado dentro de ese horario.'
+      )
       return
     }
 
     const fechaInicio = `${formulario.fecha}T${formulario.horaInicio}:00`
     const fechaFin = `${formulario.fecha}T${formulario.horaFin}:00`
 
-    const existeTurnoSuperpuesto = turnos.some((turno) => {
-      if (modoEdicion && turno.id === turnoSeleccionado.id) {
-        return false
+    if (modoEdicion && turnoSeleccionado) {
+      const turnoActualizado = {
+        ...turnoSeleccionado,
+        mascotaId: formulario.mascotaId,
+        motivo: formulario.motivo,
+        fechaInicio,
+        fechaFin,
+        estado: formulario.estado,
+        observaciones: formulario.observaciones.trim(),
       }
 
-      if (turno.estado === 'Cancelado' || turno.estado === 'Ausente') {
-        return false
-      }
-
-      const mismaMascota = turno.mascotaId === formulario.mascotaId
-      const mismoDia = obtenerFecha(turno.fechaInicio) === formulario.fecha
-
-      const inicioExistente = obtenerHora(turno.fechaInicio)
-      const finExistente = obtenerHora(turno.fechaFin)
-
-      const seSuperpone =
-        formulario.horaInicio < finExistente &&
-        formulario.horaFin > inicioExistente
-
-      return mismaMascota && mismoDia && seSuperpone
-    })
-
-    if (existeTurnoSuperpuesto) {
-      alert('Esta mascota ya tiene un turno en ese horario.')
-      return
-    }
-
-    if (modoEdicion) {
-      const turnosActualizados = turnos.map((turno) => {
-        if (turno.id === turnoSeleccionado.id) {
-          return {
-            id: turnoSeleccionado.id,
-            mascotaId: formulario.mascotaId,
-            motivo: formulario.motivo,
-            fechaInicio,
-            fechaFin,
-            estado: formulario.estado,
-            observaciones: formulario.observaciones,
-          }
-        }
-
-        return turno
-      })
-
-      setTurnos(turnosActualizados)
-
-      const turnoActualizado = turnosActualizados.find(
-        (turno) => turno.id === turnoSeleccionado.id
+      setTurnos((turnosActuales) =>
+        turnosActuales.map((turno) =>
+          turno.id === turnoSeleccionado.id ? turnoActualizado : turno
+        )
       )
 
       if (formulario.estado === 'Cancelado') {
         crearAlertaSeguimiento(turnoActualizado, 'Cancelado')
-      }
-
-      if (formulario.estado === 'Ausente') {
+      } else if (formulario.estado === 'Ausente') {
         crearAlertaSeguimiento(turnoActualizado, 'Ausente')
-      }
-
-      if (
-        formulario.estado !== 'Realizado' &&
-        formulario.motivo === 'Vacunación'
+      } else if (
+        formulario.motivo === 'Vacunación' &&
+        formulario.estado !== 'Realizado'
       ) {
         crearAlertaSeguimiento(turnoActualizado, 'Vacunación pendiente')
       }
@@ -303,10 +299,10 @@ function Turnos() {
         fechaInicio,
         fechaFin,
         estado: formulario.estado,
-        observaciones: formulario.observaciones,
+        observaciones: formulario.observaciones.trim(),
       }
 
-      setTurnos([...turnos, nuevoTurno])
+      setTurnos((turnosActuales) => [...turnosActuales, nuevoTurno])
     }
 
     cerrarPanel()
@@ -314,12 +310,10 @@ function Turnos() {
 
   const cambiarEstadoTurno = (id, nuevoEstado) => {
     const turnoEncontrado = turnos.find((turno) => turno.id === id)
-
-    if (!turnoEncontrado) return
+    if (!turnoEncontrado || turnoEncontrado.estado === nuevoEstado) return
 
     if (nuevoEstado === 'Cancelado') {
       const confirmar = window.confirm('¿Seguro que querés cancelar este turno?')
-
       if (!confirmar) return
     }
 
@@ -327,24 +321,16 @@ function Turnos() {
       const confirmar = window.confirm(
         '¿Seguro que querés marcar este turno como ausente?'
       )
-
       if (!confirmar) return
     }
 
-    const turnosActualizados = turnos.map((turno) => {
-      if (turno.id === id) {
-        return {
-          ...turno,
-          estado: nuevoEstado,
-        }
-      }
+    const turnoActualizado = { ...turnoEncontrado, estado: nuevoEstado }
 
-      return turno
-    })
-
-    setTurnos(turnosActualizados)
-
-    const turnoActualizado = turnosActualizados.find((turno) => turno.id === id)
+    setTurnos((turnosActuales) =>
+      turnosActuales.map((turno) =>
+        turno.id === id ? turnoActualizado : turno
+      )
+    )
 
     if (turnoSeleccionado?.id === id) {
       setTurnoSeleccionado(turnoActualizado)
@@ -352,78 +338,72 @@ function Turnos() {
 
     if (nuevoEstado === 'Cancelado') {
       crearAlertaSeguimiento(turnoActualizado, 'Cancelado')
-    }
-
-    if (nuevoEstado === 'Ausente') {
+    } else if (nuevoEstado === 'Ausente') {
       crearAlertaSeguimiento(turnoActualizado, 'Ausente')
-    }
-
-    if (
-      nuevoEstado !== 'Realizado' &&
-      turnoActualizado.motivo === 'Vacunación'
+    } else if (
+      turnoActualizado.motivo === 'Vacunación' &&
+      nuevoEstado !== 'Realizado'
     ) {
       crearAlertaSeguimiento(turnoActualizado, 'Vacunación pendiente')
     }
   }
 
-  const cancelarTurno = (id) => {
-    cambiarEstadoTurno(id, 'Cancelado')
-  }
-
-  const marcarAusente = (id) => {
-    cambiarEstadoTurno(id, 'Ausente')
-  }
+  const cancelarTurno = (id) => cambiarEstadoTurno(id, 'Cancelado')
+  const marcarAusente = (id) => cambiarEstadoTurno(id, 'Ausente')
 
   const eliminarTurno = (id) => {
     const confirmar = window.confirm('¿Seguro que querés eliminar este turno?')
-
     if (!confirmar) return
 
-    const turnosActualizados = turnos.filter((turno) => turno.id !== id)
+    setTurnos((turnosActuales) =>
+      turnosActuales.filter((turno) => turno.id !== id)
+    )
 
-    setTurnos(turnosActualizados)
-
-    if (turnoSeleccionado?.id === id) {
-      cerrarPanel()
-    }
+    if (turnoSeleccionado?.id === id) cerrarPanel()
   }
 
   const obtenerClaseEstado = (estado) => {
     if (estado === 'Cancelado') return 'estado-turno cancelado'
     if (estado === 'Realizado') return 'estado-turno realizado'
     if (estado === 'Ausente') return 'estado-turno ausente'
-
     return 'estado-turno programado'
-    useEffect(() => {
-  const revisarTurnosVencidos = () => {
-    const ahora = new Date()
+  }
 
-    setTurnos((turnosActuales) => {
-      let huboCambios = false
+  useEffect(() => {
+    const revisarTurnosVencidos = () => {
+      const ahora = new Date()
+      const vencidosDetectados = []
 
-      const turnosActualizados = turnosActuales.map((turno) => {
-        const estadoActual = turno.estado || 'Programado'
-        const fechaFinTurno = new Date(turno.fechaFin)
+      setTurnos((turnosActuales) => {
+        const turnosActualizados = turnosActuales.map((turno) => {
+          const fechaFinTurno = new Date(turno.fechaFin)
+          const fechaValida = !Number.isNaN(fechaFinTurno.getTime())
+          const sigueProgramado = (turno.estado || 'Programado') === 'Programado'
 
-        const turnoYaPaso = fechaFinTurno < ahora
-        const sigueProgramado = estadoActual === 'Programado'
+          if (!fechaValida || fechaFinTurno >= ahora || !sigueProgramado) {
+            return turno
+          }
 
-        if (!turnoYaPaso || !sigueProgramado) {
-          return turno
-        }
+          const turnoActualizado = {
+            ...turno,
+            estado: 'Ausente',
+            observaciones:
+              turno.observaciones ||
+              'Marcado automáticamente como ausente porque pasó el horario del turno.',
+          }
 
-        huboCambios = true
+          vencidosDetectados.push(turnoActualizado)
+          return turnoActualizado
+        })
 
-        const mascota = mascotas.find(
-          (mascota) => mascota.id === turno.mascotaId
-        )
+        return vencidosDetectados.length > 0 ? turnosActualizados : turnosActuales
+      })
 
-        const cliente = clientes.find(
-          (cliente) => cliente.id === mascota?.clienteId
-        )
-
+      vencidosDetectados.forEach((turno) => {
+        const mascota = mascotas.find((item) => item.id === turno.mascotaId)
+        const cliente = clientes.find((item) => item.id === mascota?.clienteId)
         const mensaje =
-          'El horario del turno ya pasó y el turno seguía como programado. Se recomienda contactar al cliente para reprogramar.'
+          'El horario del turno ya pasó y continuaba como programado. Se recomienda contactar al cliente para reprogramarlo.'
 
         crearAlertaSistema({
           clave: `turno-vencido-${turno.id}`,
@@ -436,40 +416,20 @@ function Turnos() {
         })
 
         setAlertaSeguimiento({
-          turno: {
-            ...turno,
-            estado: 'Ausente',
-          },
+          turno,
           mascota,
           cliente,
           tipo: 'Turno vencido',
           mensaje,
         })
-
-        return {
-          ...turno,
-          estado: 'Ausente',
-          observaciones:
-            turno.observaciones ||
-            'Marcado automáticamente como ausente porque pasó el horario del turno.',
-        }
       })
+    }
 
-      if (!huboCambios) {
-        return turnosActuales
-      }
+    revisarTurnosVencidos()
+    const intervalo = window.setInterval(revisarTurnosVencidos, 60000)
+    return () => window.clearInterval(intervalo)
+  }, [clientes, mascotas])
 
-      return turnosActualizados
-    })
-  }
-
-  revisarTurnosVencidos()
-
-  const intervalo = setInterval(revisarTurnosVencidos, 60000)
-
-  return () => clearInterval(intervalo)
-}, [clientes, mascotas])
-  }
 
   return (
     <section className="turnos-page">
@@ -479,7 +439,7 @@ function Turnos() {
           <p>Agenda, asignación y control de turnos</p>
         </div>
 
-        <button className="btn-nuevo-turno" onClick={abrirNuevoTurno}>
+        <button type="button" className="btn-nuevo-turno" onClick={abrirNuevoTurno}>
           <FaPlus />
           Nuevo Turno
         </button>
@@ -562,7 +522,8 @@ function Turnos() {
             </div>
 
             <span className="turnos-total">
-              {turnosFiltrados.length} turnos
+              {turnosFiltrados.length}{' '}
+              {turnosFiltrados.length === 1 ? 'turno' : 'turnos'}
             </span>
           </div>
 
@@ -677,7 +638,7 @@ function Turnos() {
 
         {(mostrarFormulario || turnoSeleccionado) && (
           <aside className="turnos-side-card">
-            <button className="btn-cerrar" onClick={cerrarPanel}>
+            <button type="button" className="btn-cerrar" onClick={cerrarPanel}>
               <FaXmark />
             </button>
 
@@ -692,6 +653,11 @@ function Turnos() {
                 </p>
 
                 <form className="turno-form" onSubmit={guardarTurno}>
+                  {errorFormulario && (
+                    <div className="turno-form-error" role="alert">
+                      {errorFormulario}
+                    </div>
+                  )}
                   <label>Mascota</label>
                   <select
                     name="mascotaId"
