@@ -1,623 +1,579 @@
-import { useMemo, useState } from 'react'
+import { useState } from 'react'
 import {
-  FaMagnifyingGlass,
-  FaPlus,
-  FaEye,
-  FaPen,
-  FaTrash,
+  FaBell,
+  FaBuilding,
+  FaCircleCheck,
+  FaDatabase,
   FaFloppyDisk,
-  FaXmark,
-  FaStethoscope,
+  FaGear,
+  FaPalette,
+  FaShieldHalved,
   FaTriangleExclamation,
+  FaXmark,
 } from 'react-icons/fa6'
 
-import {
-  clientes as clientesIniciales,
-  mascotas as mascotasIniciales,
-} from '../data/mockData'
+import './Configuracion.css'
 
-import './Consultas.css'
-
-const consultasIniciales = [
-  {
-    id: 1,
-    mascotaId: 1,
-    fecha: '2026-06-20',
-    peso: 18.5,
-    temperatura: 38.2,
-    diagnostico: 'Control general sin complicaciones.',
-    tratamiento: 'Continuar alimentación habitual.',
-    observaciones: 'Paciente tranquilo durante la revisión.',
-  },
-  {
-    id: 2,
-    mascotaId: 2,
-    fecha: '2026-06-21',
-    peso: 4.2,
-    temperatura: 38.6,
-    diagnostico: 'Revisión por vacunación.',
-    tratamiento: 'Aplicar refuerzo según calendario.',
-    observaciones: 'Se recomienda próximo control en 30 días.',
-  },
-  {
-    id: 3,
-    mascotaId: 3,
-    fecha: '2026-06-22',
-    peso: 5.1,
-    temperatura: 38.4,
-    diagnostico: 'Control de rutina.',
-    tratamiento: 'Sin medicación indicada.',
-    observaciones: 'Buen estado general.',
-  },
-]
-
-const consultaVacia = {
-  mascotaId: '',
-  fecha: '',
-  peso: '',
-  temperatura: '',
-  diagnostico: '',
-  tratamiento: '',
-  observaciones: '',
+const configuracionInicial = {
+  nombreVeterinaria: 'Veterinaria Patitas',
+  telefono: '3415551234',
+  email: 'contacto@patitas.com',
+  direccion: 'Av. Principal 1234',
+  ciudad: 'Rosario',
+  horario: 'Lunes a viernes de 08:00 a 20:00',
+  colorPrincipal: '#2f8c80',
+  avisosTurnos: true,
+  avisosVacunas: true,
+  avisosStock: true,
+  avisosVencimientos: true,
+  confirmarEliminaciones: true,
+  cierreAutomaticoSesion: true,
+  copiasAutomaticas: true,
+  frecuenciaCopia: 'Diaria',
 }
 
-function Consultas() {
-  const [clientes] = useState(clientesIniciales)
-  const [mascotas] = useState(mascotasIniciales)
-  const [consultas, setConsultas] = useState(consultasIniciales)
-  const [busqueda, setBusqueda] = useState('')
-  const [mostrarFormulario, setMostrarFormulario] = useState(false)
-  const [consultaSeleccionada, setConsultaSeleccionada] = useState(null)
-  const [modoEdicion, setModoEdicion] = useState(false)
-  const [formulario, setFormulario] = useState(consultaVacia)
-  const [errorFormulario, setErrorFormulario] = useState('')
-
-  const obtenerMascota = (mascotaId) => {
-    return mascotas.find((mascota) => mascota.id === Number(mascotaId))
-  }
-
-  const obtenerClienteDeMascota = (mascotaId) => {
-    const mascota = obtenerMascota(mascotaId)
-
-    if (!mascota) return null
-
-    return clientes.find((cliente) => cliente.id === mascota.clienteId)
-  }
-
-  const formatearFecha = (fecha) => {
-    if (!fecha) return 'Sin fecha'
-
-    const fechaLocal = new Date(`${fecha}T00:00:00`)
-
-    if (Number.isNaN(fechaLocal.getTime())) return fecha
-
-    return fechaLocal.toLocaleDateString('es-AR')
-  }
-
-  const consultasFiltradas = useMemo(() => {
-    const termino = busqueda.trim().toLowerCase()
-
-    return consultas.filter((consulta) => {
-      const mascota = obtenerMascota(consulta.mascotaId)
-      const cliente = obtenerClienteDeMascota(consulta.mascotaId)
-
-      const texto = `
-        ${consulta.fecha}
-        ${consulta.diagnostico}
-        ${consulta.tratamiento}
-        ${consulta.observaciones}
-        ${mascota?.nombre || ''}
-        ${mascota?.especie || ''}
-        ${cliente?.nombre || ''}
-        ${cliente?.apellido || ''}
-      `.toLowerCase()
-
-      return texto.includes(termino)
-    })
-  }, [busqueda, consultas, clientes, mascotas])
-
-  const historialMascota = useMemo(() => {
-    if (!consultaSeleccionada) return []
-
-    return consultas
-      .filter(
-        (consulta) =>
-          consulta.mascotaId === consultaSeleccionada.mascotaId
-      )
-      .sort((a, b) => new Date(b.fecha) - new Date(a.fecha))
-  }, [consultaSeleccionada, consultas])
-
-  const abrirNuevaConsulta = () => {
-    setFormulario(consultaVacia)
-    setConsultaSeleccionada(null)
-    setModoEdicion(false)
-    setErrorFormulario('')
-    setMostrarFormulario(true)
-  }
-
-  const abrirVerConsulta = (consulta) => {
-    setConsultaSeleccionada(consulta)
-    setMostrarFormulario(false)
-    setModoEdicion(false)
-    setErrorFormulario('')
-  }
-
-  const abrirEditarConsulta = (consulta) => {
-    setFormulario({
-      mascotaId: consulta.mascotaId,
-      fecha: consulta.fecha,
-      peso: consulta.peso ?? '',
-      temperatura: consulta.temperatura ?? '',
-      diagnostico: consulta.diagnostico,
-      tratamiento: consulta.tratamiento,
-      observaciones: consulta.observaciones,
-    })
-
-    setConsultaSeleccionada(consulta)
-    setModoEdicion(true)
-    setErrorFormulario('')
-    setMostrarFormulario(true)
-  }
-
-  const cerrarPanel = () => {
-    setFormulario(consultaVacia)
-    setConsultaSeleccionada(null)
-    setMostrarFormulario(false)
-    setModoEdicion(false)
-    setErrorFormulario('')
-  }
+function Configuracion() {
+  const [configuracion, setConfiguracion] = useState(configuracionInicial)
+  const [seccionActiva, setSeccionActiva] = useState('general')
+  const [mensaje, setMensaje] = useState(null)
+  const [errores, setErrores] = useState({})
+  const [mostrarRestaurar, setMostrarRestaurar] = useState(false)
 
   const manejarCambio = (e) => {
-    const { name, value } = e.target
+    const { name, value, type, checked } = e.target
 
-    setFormulario((formularioActual) => ({
-      ...formularioActual,
-      [name]: name === 'mascotaId' && value ? Number(value) : value,
+    setConfiguracion((actual) => ({
+      ...actual,
+      [name]: type === 'checkbox' ? checked : value,
     }))
 
-    if (errorFormulario) {
-      setErrorFormulario('')
+    if (errores[name]) {
+      setErrores((actuales) => ({
+        ...actuales,
+        [name]: '',
+      }))
     }
+
+    setMensaje(null)
   }
 
-  const validarFormulario = () => {
-    if (!formulario.mascotaId) {
-      return 'Seleccioná una mascota.'
+  const validarGeneral = () => {
+    const nuevosErrores = {}
+
+    if (!configuracion.nombreVeterinaria.trim()) {
+      nuevosErrores.nombreVeterinaria = 'Ingresá el nombre de la veterinaria.'
     }
 
-    if (!formulario.fecha) {
-      return 'Ingresá la fecha de la consulta.'
+    if (!configuracion.telefono.trim()) {
+      nuevosErrores.telefono = 'Ingresá un teléfono.'
+    } else if (!/^\d+$/.test(configuracion.telefono)) {
+      nuevosErrores.telefono = 'El teléfono solo puede contener números.'
     }
 
-    if (!formulario.peso || Number(formulario.peso) <= 0) {
-      return 'Ingresá un peso válido.'
+    if (!configuracion.email.trim()) {
+      nuevosErrores.email = 'Ingresá un correo electrónico.'
+    } else if (!/^[^\s@]+@[^\s@]+\.[^\s@]+$/.test(configuracion.email)) {
+      nuevosErrores.email = 'Ingresá un correo electrónico válido.'
     }
 
-    if (
-      !formulario.temperatura ||
-      Number(formulario.temperatura) < 30 ||
-      Number(formulario.temperatura) > 45
-    ) {
-      return 'Ingresá una temperatura válida entre 30 °C y 45 °C.'
+    if (!configuracion.direccion.trim()) {
+      nuevosErrores.direccion = 'Ingresá una dirección.'
     }
 
-    if (!formulario.diagnostico.trim()) {
-      return 'Ingresá el diagnóstico.'
-    }
+    setErrores(nuevosErrores)
 
-    if (!formulario.tratamiento.trim()) {
-      return 'Ingresá el tratamiento.'
-    }
-
-    return ''
+    return Object.keys(nuevosErrores).length === 0
   }
 
-  const guardarConsulta = (e) => {
+  const guardarConfiguracion = (e) => {
     e.preventDefault()
 
-    const error = validarFormulario()
-
-    if (error) {
-      setErrorFormulario(error)
+    if (seccionActiva === 'general' && !validarGeneral()) {
+      setMensaje({
+        tipo: 'error',
+        texto: 'Revisá los campos marcados antes de guardar.',
+      })
       return
     }
 
-    const datosConsulta = {
-      mascotaId: Number(formulario.mascotaId),
-      fecha: formulario.fecha,
-      peso: Number(formulario.peso),
-      temperatura: Number(formulario.temperatura),
-      diagnostico: formulario.diagnostico.trim(),
-      tratamiento: formulario.tratamiento.trim(),
-      observaciones: formulario.observaciones.trim(),
-    }
-
-    if (modoEdicion && consultaSeleccionada) {
-      setConsultas((consultasActuales) =>
-        consultasActuales.map((consulta) =>
-          consulta.id === consultaSeleccionada.id
-            ? { ...consulta, ...datosConsulta }
-            : consulta
-        )
-      )
-    } else {
-      setConsultas((consultasActuales) => [
-        ...consultasActuales,
-        {
-          id: Date.now(),
-          ...datosConsulta,
-        },
-      ])
-    }
-
-    cerrarPanel()
+    setMensaje({
+      tipo: 'exito',
+      texto: 'La configuración se guardó correctamente.',
+    })
   }
 
-  const eliminarConsulta = (id) => {
-    const confirmar = window.confirm(
-      '¿Seguro que querés eliminar esta consulta?'
-    )
-
-    if (!confirmar) return
-
-    setConsultas((consultasActuales) =>
-      consultasActuales.filter((consulta) => consulta.id !== id)
-    )
-
-    if (consultaSeleccionada?.id === id) {
-      cerrarPanel()
-    }
+  const restaurarConfiguracion = () => {
+    setConfiguracion(configuracionInicial)
+    setErrores({})
+    setMostrarRestaurar(false)
+    setMensaje({
+      tipo: 'exito',
+      texto: 'La configuración fue restaurada a sus valores iniciales.',
+    })
   }
 
-  const mascotaSeleccionada = consultaSeleccionada
-    ? obtenerMascota(consultaSeleccionada.mascotaId)
-    : null
-
-  const clienteSeleccionado = consultaSeleccionada
-    ? obtenerClienteDeMascota(consultaSeleccionada.mascotaId)
-    : null
-
-  return (
-    <section className="consultas-page">
-      <div className="consultas-header">
+  const renderGeneral = () => (
+    <div className="configuracion-panel">
+      <div className="configuracion-panel-header">
+        <FaBuilding aria-hidden="true" />
         <div>
-          <h1>Consultas</h1>
-          <p>Registro de consultas clínicas e historial médico</p>
+          <h2>Datos de la veterinaria</h2>
+          <p>Información general que identifica al establecimiento.</p>
+        </div>
+      </div>
+
+      <div className="configuracion-form-grid">
+        <div className="campo-configuracion campo-completo">
+          <label htmlFor="nombreVeterinaria">Nombre de la veterinaria</label>
+          <input
+            id="nombreVeterinaria"
+            type="text"
+            name="nombreVeterinaria"
+            value={configuracion.nombreVeterinaria}
+            onChange={manejarCambio}
+            className={errores.nombreVeterinaria ? 'campo-error' : ''}
+          />
+          {errores.nombreVeterinaria && (
+            <span className="mensaje-campo">
+              {errores.nombreVeterinaria}
+            </span>
+          )}
         </div>
 
+        <div className="campo-configuracion">
+          <label htmlFor="telefono">Teléfono</label>
+          <input
+            id="telefono"
+            type="text"
+            name="telefono"
+            value={configuracion.telefono}
+            onChange={manejarCambio}
+            inputMode="numeric"
+            className={errores.telefono ? 'campo-error' : ''}
+          />
+          {errores.telefono && (
+            <span className="mensaje-campo">{errores.telefono}</span>
+          )}
+        </div>
+
+        <div className="campo-configuracion">
+          <label htmlFor="email">Correo electrónico</label>
+          <input
+            id="email"
+            type="email"
+            name="email"
+            value={configuracion.email}
+            onChange={manejarCambio}
+            className={errores.email ? 'campo-error' : ''}
+          />
+          {errores.email && (
+            <span className="mensaje-campo">{errores.email}</span>
+          )}
+        </div>
+
+        <div className="campo-configuracion">
+          <label htmlFor="direccion">Dirección</label>
+          <input
+            id="direccion"
+            type="text"
+            name="direccion"
+            value={configuracion.direccion}
+            onChange={manejarCambio}
+            className={errores.direccion ? 'campo-error' : ''}
+          />
+          {errores.direccion && (
+            <span className="mensaje-campo">{errores.direccion}</span>
+          )}
+        </div>
+
+        <div className="campo-configuracion">
+          <label htmlFor="ciudad">Ciudad</label>
+          <input
+            id="ciudad"
+            type="text"
+            name="ciudad"
+            value={configuracion.ciudad}
+            onChange={manejarCambio}
+          />
+        </div>
+
+        <div className="campo-configuracion campo-completo">
+          <label htmlFor="horario">Horario de atención</label>
+          <input
+            id="horario"
+            type="text"
+            name="horario"
+            value={configuracion.horario}
+            onChange={manejarCambio}
+          />
+        </div>
+      </div>
+    </div>
+  )
+
+  const renderNotificaciones = () => (
+    <div className="configuracion-panel">
+      <div className="configuracion-panel-header">
+        <FaBell aria-hidden="true" />
+        <div>
+          <h2>Notificaciones</h2>
+          <p>Elegí qué alertas querés mostrar dentro del sistema.</p>
+        </div>
+      </div>
+
+      <div className="configuracion-opciones">
+        <label className="configuracion-switch-row">
+          <div>
+            <strong>Recordatorios de turnos</strong>
+            <span>Mostrar avisos de turnos próximos, cancelados o no asistidos.</span>
+          </div>
+          <input
+            type="checkbox"
+            name="avisosTurnos"
+            checked={configuracion.avisosTurnos}
+            onChange={manejarCambio}
+          />
+          <span className="switch-control" />
+        </label>
+
+        <label className="configuracion-switch-row">
+          <div>
+            <strong>Alertas de vacunación</strong>
+            <span>Notificar cuando una mascota tenga una vacuna próxima.</span>
+          </div>
+          <input
+            type="checkbox"
+            name="avisosVacunas"
+            checked={configuracion.avisosVacunas}
+            onChange={manejarCambio}
+          />
+          <span className="switch-control" />
+        </label>
+
+        <label className="configuracion-switch-row">
+          <div>
+            <strong>Alertas de stock</strong>
+            <span>Informar cuando un producto alcance el stock mínimo.</span>
+          </div>
+          <input
+            type="checkbox"
+            name="avisosStock"
+            checked={configuracion.avisosStock}
+            onChange={manejarCambio}
+          />
+          <span className="switch-control" />
+        </label>
+
+        <label className="configuracion-switch-row">
+          <div>
+            <strong>Alertas de vencimiento</strong>
+            <span>Mostrar productos y lotes próximos a vencer.</span>
+          </div>
+          <input
+            type="checkbox"
+            name="avisosVencimientos"
+            checked={configuracion.avisosVencimientos}
+            onChange={manejarCambio}
+          />
+          <span className="switch-control" />
+        </label>
+      </div>
+    </div>
+  )
+
+  const renderSeguridad = () => (
+    <div className="configuracion-panel">
+      <div className="configuracion-panel-header">
+        <FaShieldHalved aria-hidden="true" />
+        <div>
+          <h2>Seguridad</h2>
+          <p>Preferencias para proteger el acceso y las acciones sensibles.</p>
+        </div>
+      </div>
+
+      <div className="configuracion-opciones">
+        <label className="configuracion-switch-row">
+          <div>
+            <strong>Confirmar eliminaciones</strong>
+            <span>Solicitar confirmación antes de borrar información.</span>
+          </div>
+          <input
+            type="checkbox"
+            name="confirmarEliminaciones"
+            checked={configuracion.confirmarEliminaciones}
+            onChange={manejarCambio}
+          />
+          <span className="switch-control" />
+        </label>
+
+        <label className="configuracion-switch-row">
+          <div>
+            <strong>Cierre automático de sesión</strong>
+            <span>Cerrar la sesión cuando exista un período prolongado de inactividad.</span>
+          </div>
+          <input
+            type="checkbox"
+            name="cierreAutomaticoSesion"
+            checked={configuracion.cierreAutomaticoSesion}
+            onChange={manejarCambio}
+          />
+          <span className="switch-control" />
+        </label>
+      </div>
+
+      <div className="configuracion-aviso">
+        <FaTriangleExclamation aria-hidden="true" />
+        <p>
+          Los cambios de contraseñas, permisos y accesos individuales se
+          administran desde el módulo <strong>Usuarios</strong>.
+        </p>
+      </div>
+    </div>
+  )
+
+  const renderApariencia = () => (
+    <div className="configuracion-panel">
+      <div className="configuracion-panel-header">
+        <FaPalette aria-hidden="true" />
+        <div>
+          <h2>Apariencia</h2>
+          <p>Personalizá el color principal de la interfaz.</p>
+        </div>
+      </div>
+
+      <div className="configuracion-color">
+        <div>
+          <label htmlFor="colorPrincipal">Color principal</label>
+          <span>Se aplicará a botones, íconos y elementos destacados.</span>
+        </div>
+
+        <div className="selector-color">
+          <input
+            id="colorPrincipal"
+            type="color"
+            name="colorPrincipal"
+            value={configuracion.colorPrincipal}
+            onChange={manejarCambio}
+          />
+          <strong>{configuracion.colorPrincipal.toUpperCase()}</strong>
+        </div>
+      </div>
+
+      <div className="vista-previa">
+        <span>Vista previa</span>
         <button
           type="button"
-          className="btn-nueva-consulta"
-          onClick={abrirNuevaConsulta}
+          style={{ backgroundColor: configuracion.colorPrincipal }}
         >
-          <FaPlus />
-          Nueva Consulta
+          Botón principal
         </button>
+        <div
+          className="vista-previa-icono"
+          style={{
+            color: configuracion.colorPrincipal,
+            backgroundColor: `${configuracion.colorPrincipal}1F`,
+          }}
+        >
+          <FaGear />
+        </div>
+      </div>
+    </div>
+  )
+
+  const renderRespaldo = () => (
+    <div className="configuracion-panel">
+      <div className="configuracion-panel-header">
+        <FaDatabase aria-hidden="true" />
+        <div>
+          <h2>Copias de seguridad</h2>
+          <p>Configuración de respaldo para la información del sistema.</p>
+        </div>
       </div>
 
-      <div className="consultas-content">
-        <div className="consultas-main-card">
-          <div className="consultas-toolbar">
-            <div className="consultas-search">
-              <FaMagnifyingGlass />
-
-              <input
-                type="text"
-                placeholder="Buscar por mascota, dueño, fecha, diagnóstico o tratamiento"
-                value={busqueda}
-                onChange={(e) => setBusqueda(e.target.value)}
-              />
-            </div>
-
-            <span className="consultas-total">
-              {consultasFiltradas.length}{' '}
-              {consultasFiltradas.length === 1 ? 'consulta' : 'consultas'}
-            </span>
+      <div className="configuracion-opciones">
+        <label className="configuracion-switch-row">
+          <div>
+            <strong>Copias automáticas</strong>
+            <span>Generar respaldos periódicos de la base de datos.</span>
           </div>
+          <input
+            type="checkbox"
+            name="copiasAutomaticas"
+            checked={configuracion.copiasAutomaticas}
+            onChange={manejarCambio}
+          />
+          <span className="switch-control" />
+        </label>
+      </div>
 
-          <div className="consultas-table-wrapper">
-            <table className="consultas-table">
-              <thead>
-                <tr>
-                  <th>Consulta</th>
-                  <th>Mascota</th>
-                  <th>Dueño</th>
-                  <th>Diagnóstico</th>
-                  <th>Tratamiento</th>
-                  <th>Acciones</th>
-                </tr>
-              </thead>
+      <div className="campo-configuracion frecuencia-copia">
+        <label htmlFor="frecuenciaCopia">Frecuencia</label>
+        <select
+          id="frecuenciaCopia"
+          name="frecuenciaCopia"
+          value={configuracion.frecuenciaCopia}
+          onChange={manejarCambio}
+          disabled={!configuracion.copiasAutomaticas}
+        >
+          <option value="Diaria">Diaria</option>
+          <option value="Semanal">Semanal</option>
+          <option value="Mensual">Mensual</option>
+        </select>
+      </div>
 
-              <tbody>
-                {consultasFiltradas.map((consulta) => {
-                  const mascota = obtenerMascota(consulta.mascotaId)
-                  const cliente = obtenerClienteDeMascota(consulta.mascotaId)
+      <div className="configuracion-respaldo-info">
+        <strong>Última copia</strong>
+        <span>Función disponible al integrar el sistema con el backend.</span>
+      </div>
+    </div>
+  )
 
-                  return (
-                    <tr key={consulta.id}>
-                      <td>
-                        <div className="consulta-fecha">
-                          <div className="consulta-icono">
-                            <FaStethoscope />
-                          </div>
+  const contenidoPorSeccion = {
+    general: renderGeneral(),
+    notificaciones: renderNotificaciones(),
+    seguridad: renderSeguridad(),
+    apariencia: renderApariencia(),
+    respaldo: renderRespaldo(),
+  }
 
-                          <div>
-                            <strong>{formatearFecha(consulta.fecha)}</strong>
-                            <small>
-                              {consulta.peso} kg · {consulta.temperatura} °C
-                            </small>
-                          </div>
-                        </div>
-                      </td>
-
-                      <td>{mascota?.nombre || 'Sin mascota'}</td>
-
-                      <td>
-                        {cliente
-                          ? `${cliente.nombre} ${cliente.apellido}`
-                          : 'Sin dueño'}
-                      </td>
-
-                      <td className="texto-recortado">
-                        {consulta.diagnostico}
-                      </td>
-
-                      <td className="texto-recortado">
-                        {consulta.tratamiento}
-                      </td>
-
-                      <td>
-                        <div className="acciones">
-                          <button
-                            type="button"
-                            className="btn-accion ver"
-                            onClick={() => abrirVerConsulta(consulta)}
-                            title="Ver consulta"
-                            aria-label="Ver consulta"
-                          >
-                            <FaEye />
-                          </button>
-
-                          <button
-                            type="button"
-                            className="btn-accion editar"
-                            onClick={() => abrirEditarConsulta(consulta)}
-                            title="Editar consulta"
-                            aria-label="Editar consulta"
-                          >
-                            <FaPen />
-                          </button>
-
-                          <button
-                            type="button"
-                            className="btn-accion eliminar"
-                            onClick={() => eliminarConsulta(consulta.id)}
-                            title="Eliminar consulta"
-                            aria-label="Eliminar consulta"
-                          >
-                            <FaTrash />
-                          </button>
-                        </div>
-                      </td>
-                    </tr>
-                  )
-                })}
-
-                {consultasFiltradas.length === 0 && (
-                  <tr>
-                    <td colSpan="6" className="sin-resultados">
-                      No se encontraron consultas.
-                    </td>
-                  </tr>
-                )}
-              </tbody>
-            </table>
-          </div>
+  return (
+    <section className="configuracion-page">
+      <div className="configuracion-header">
+        <div>
+          <h1>Configuración</h1>
+          <p>Administración general y preferencias del sistema</p>
         </div>
+      </div>
 
-        {(mostrarFormulario || consultaSeleccionada) && (
-          <aside className="consultas-side-card">
+      {mensaje && (
+        <div className={`configuracion-mensaje ${mensaje.tipo}`} role="status">
+          <div>
+            {mensaje.tipo === 'exito' ? (
+              <FaCircleCheck aria-hidden="true" />
+            ) : (
+              <FaTriangleExclamation aria-hidden="true" />
+            )}
+            <span>{mensaje.texto}</span>
+          </div>
+
+          <button
+            type="button"
+            onClick={() => setMensaje(null)}
+            aria-label="Cerrar mensaje"
+          >
+            <FaXmark />
+          </button>
+        </div>
+      )}
+
+      <form className="configuracion-layout" onSubmit={guardarConfiguracion}>
+        <aside className="configuracion-menu">
+          <button
+            type="button"
+            className={seccionActiva === 'general' ? 'activo' : ''}
+            onClick={() => setSeccionActiva('general')}
+          >
+            <FaBuilding />
+            General
+          </button>
+
+          <button
+            type="button"
+            className={seccionActiva === 'notificaciones' ? 'activo' : ''}
+            onClick={() => setSeccionActiva('notificaciones')}
+          >
+            <FaBell />
+            Notificaciones
+          </button>
+
+          <button
+            type="button"
+            className={seccionActiva === 'seguridad' ? 'activo' : ''}
+            onClick={() => setSeccionActiva('seguridad')}
+          >
+            <FaShieldHalved />
+            Seguridad
+          </button>
+
+          <button
+            type="button"
+            className={seccionActiva === 'apariencia' ? 'activo' : ''}
+            onClick={() => setSeccionActiva('apariencia')}
+          >
+            <FaPalette />
+            Apariencia
+          </button>
+
+          <button
+            type="button"
+            className={seccionActiva === 'respaldo' ? 'activo' : ''}
+            onClick={() => setSeccionActiva('respaldo')}
+          >
+            <FaDatabase />
+            Copias de seguridad
+          </button>
+        </aside>
+
+        <div className="configuracion-contenido">
+          {contenidoPorSeccion[seccionActiva]}
+
+          <div className="configuracion-acciones">
             <button
               type="button"
-              className="btn-cerrar"
-              onClick={cerrarPanel}
-              aria-label="Cerrar panel"
+              className="btn-restaurar"
+              onClick={() => setMostrarRestaurar(true)}
             >
-              <FaXmark />
+              Restaurar valores
             </button>
 
-            {mostrarFormulario ? (
-              <>
-                <h2>{modoEdicion ? 'Editar Consulta' : 'Nueva Consulta'}</h2>
+            <button type="submit" className="btn-guardar-configuracion">
+              <FaFloppyDisk />
+              Guardar cambios
+            </button>
+          </div>
+        </div>
+      </form>
 
-                <p>
-                  {modoEdicion
-                    ? 'Modificá los datos de la consulta seleccionada'
-                    : 'Cargá una nueva consulta clínica'}
-                </p>
+      {mostrarRestaurar && (
+        <div className="configuracion-modal-overlay">
+          <div
+            className="configuracion-modal"
+            role="dialog"
+            aria-modal="true"
+            aria-labelledby="titulo-restaurar"
+          >
+            <div className="configuracion-modal-icono">
+              <FaTriangleExclamation />
+            </div>
 
-                <form className="consulta-form" onSubmit={guardarConsulta}>
-                  {errorFormulario && (
-                    <div className="consulta-form-error" role="alert">
-                      <FaTriangleExclamation />
-                      <span>{errorFormulario}</span>
-                    </div>
-                  )}
+            <h3 id="titulo-restaurar">Restaurar configuración</h3>
+            <p>
+              Se reemplazarán todos los cambios realizados por los valores
+              iniciales del sistema.
+            </p>
 
-                  <label htmlFor="mascotaId">Mascota</label>
-                  <select
-                    id="mascotaId"
-                    name="mascotaId"
-                    value={formulario.mascotaId}
-                    onChange={manejarCambio}
-                  >
-                    <option value="">Seleccionar mascota</option>
+            <div className="configuracion-modal-acciones">
+              <button
+                type="button"
+                className="btn-modal-cancelar"
+                onClick={() => setMostrarRestaurar(false)}
+              >
+                Cancelar
+              </button>
 
-                    {mascotas.map((mascota) => {
-                      const cliente = obtenerClienteDeMascota(mascota.id)
-
-                      return (
-                        <option key={mascota.id} value={mascota.id}>
-                          {mascota.nombre} - {cliente?.nombre}{' '}
-                          {cliente?.apellido}
-                        </option>
-                      )
-                    })}
-                  </select>
-
-                  <label htmlFor="fecha">Fecha</label>
-                  <input
-                    id="fecha"
-                    type="date"
-                    name="fecha"
-                    value={formulario.fecha}
-                    onChange={manejarCambio}
-                  />
-
-                  <label htmlFor="peso">Peso (kg)</label>
-                  <input
-                    id="peso"
-                    type="number"
-                    name="peso"
-                    value={formulario.peso}
-                    onChange={manejarCambio}
-                    min="0.1"
-                    step="0.1"
-                    placeholder="Ejemplo: 8.5"
-                  />
-
-                  <label htmlFor="temperatura">Temperatura (°C)</label>
-                  <input
-                    id="temperatura"
-                    type="number"
-                    name="temperatura"
-                    value={formulario.temperatura}
-                    onChange={manejarCambio}
-                    min="30"
-                    max="45"
-                    step="0.1"
-                    placeholder="Ejemplo: 38.5"
-                  />
-
-                  <label htmlFor="diagnostico">Diagnóstico</label>
-                  <textarea
-                    id="diagnostico"
-                    name="diagnostico"
-                    value={formulario.diagnostico}
-                    onChange={manejarCambio}
-                    placeholder="Describí el diagnóstico"
-                  />
-
-                  <label htmlFor="tratamiento">Tratamiento</label>
-                  <textarea
-                    id="tratamiento"
-                    name="tratamiento"
-                    value={formulario.tratamiento}
-                    onChange={manejarCambio}
-                    placeholder="Indicá el tratamiento"
-                  />
-
-                  <label htmlFor="observaciones">Observaciones</label>
-                  <textarea
-                    id="observaciones"
-                    name="observaciones"
-                    value={formulario.observaciones}
-                    onChange={manejarCambio}
-                    placeholder="Información adicional"
-                  />
-
-                  <button type="submit" className="btn-guardar">
-                    <FaFloppyDisk />
-                    {modoEdicion ? 'Guardar Cambios' : 'Guardar Consulta'}
-                  </button>
-                </form>
-              </>
-            ) : (
-              <>
-                <h2>Detalle de Consulta</h2>
-                <p>Información clínica registrada</p>
-
-                <div className="consulta-detalle">
-                  <div>
-                    <span>Fecha</span>
-                    <strong>{formatearFecha(consultaSeleccionada.fecha)}</strong>
-                  </div>
-
-                  <div>
-                    <span>Mascota</span>
-                    <strong>{mascotaSeleccionada?.nombre || 'Sin mascota'}</strong>
-                  </div>
-
-                  <div>
-                    <span>Dueño</span>
-                    <strong>
-                      {clienteSeleccionado
-                        ? `${clienteSeleccionado.nombre} ${clienteSeleccionado.apellido}`
-                        : 'Sin dueño'}
-                    </strong>
-                  </div>
-
-                  <div>
-                    <span>Peso</span>
-                    <strong>{consultaSeleccionada.peso} kg</strong>
-                  </div>
-
-                  <div>
-                    <span>Temperatura</span>
-                    <strong>{consultaSeleccionada.temperatura} °C</strong>
-                  </div>
-
-                  <div>
-                    <span>Diagnóstico</span>
-                    <strong>{consultaSeleccionada.diagnostico}</strong>
-                  </div>
-
-                  <div>
-                    <span>Tratamiento</span>
-                    <strong>{consultaSeleccionada.tratamiento}</strong>
-                  </div>
-
-                  <div>
-                    <span>Observaciones</span>
-                    <strong>
-                      {consultaSeleccionada.observaciones || 'Sin observaciones'}
-                    </strong>
-                  </div>
-                </div>
-
-                <div className="historial-clinico">
-                  <h3>Historial clínico</h3>
-
-                  {historialMascota.map((consulta) => (
-                    <div
-                      className={`historial-item ${
-                        consulta.id === consultaSeleccionada.id
-                          ? 'historial-item-activo'
-                          : ''
-                      }`}
-                      key={consulta.id}
-                    >
-                      <strong>{formatearFecha(consulta.fecha)}</strong>
-                      <span>{consulta.diagnostico}</span>
-                    </div>
-                  ))}
-                </div>
-
-                <button
-                  type="button"
-                  className="btn-editar-detalle"
-                  onClick={() => abrirEditarConsulta(consultaSeleccionada)}
-                >
-                  <FaPen />
-                  Editar Consulta
-                </button>
-              </>
-            )}
-          </aside>
-        )}
-      </div>
+              <button
+                type="button"
+                className="btn-modal-restaurar"
+                onClick={restaurarConfiguracion}
+              >
+                Restaurar
+              </button>
+            </div>
+          </div>
+        </div>
+      )}
     </section>
   )
 }
 
-export default Consultas
+export default Configuracion
