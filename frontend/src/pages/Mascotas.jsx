@@ -1,4 +1,4 @@
-import { useState } from 'react'
+import { useMemo, useState } from 'react'
 import {
   FaMagnifyingGlass,
   FaPlus,
@@ -14,6 +14,11 @@ import {
   clientes as clientesIniciales,
   mascotas as mascotasIniciales,
 } from '../data/mockData'
+
+import {
+  soloLetras,
+  soloNumerosDecimales,
+} from '../utils/validaciones'
 
 import './Mascotas.css'
 
@@ -35,31 +40,95 @@ function Mascotas() {
   const [mostrarFormulario, setMostrarFormulario] = useState(false)
   const [mascotaSeleccionada, setMascotaSeleccionada] = useState(null)
   const [modoEdicion, setModoEdicion] = useState(false)
-  const [formulario, setFormulario] = useState(mascotaVacia)
+  const [formulario, setFormulario] = useState({ ...mascotaVacia })
+  const [errorFormulario, setErrorFormulario] = useState('')
+
+  const fechaActual = new Date().toISOString().split('T')[0]
 
   const obtenerCliente = (clienteId) => {
-    return clientes.find((cliente) => cliente.id === clienteId)
+    return clientes.find((cliente) => cliente.id === Number(clienteId))
   }
 
-  const mascotasFiltradas = mascotas.filter((mascota) => {
-    const cliente = obtenerCliente(mascota.clienteId)
+  const formatearFecha = (fecha) => {
+    if (!fecha) {
+      return 'No registrada'
+    }
 
-    const texto = `
-      ${mascota.nombre}
-      ${mascota.especie}
-      ${mascota.raza}
-      ${mascota.sexo}
-      ${cliente?.nombre}
-      ${cliente?.apellido}
-    `.toLowerCase()
+    const [anio, mes, dia] = fecha.split('-')
 
-    return texto.includes(busqueda.toLowerCase())
-  })
+    if (!anio || !mes || !dia) {
+      return fecha
+    }
+
+    return `${dia}/${mes}/${anio}`
+  }
+
+  const calcularEdad = (fechaNacimiento) => {
+    if (!fechaNacimiento) {
+      return 'Edad no registrada'
+    }
+
+    const nacimiento = new Date(`${fechaNacimiento}T00:00:00`)
+    const hoy = new Date()
+
+    let anios = hoy.getFullYear() - nacimiento.getFullYear()
+    let meses = hoy.getMonth() - nacimiento.getMonth()
+
+    if (hoy.getDate() < nacimiento.getDate()) {
+      meses -= 1
+    }
+
+    if (meses < 0) {
+      anios -= 1
+      meses += 12
+    }
+
+    if (anios < 0) {
+      return 'Fecha inválida'
+    }
+
+    if (anios === 0) {
+      if (meses === 0) {
+        return 'Menos de un mes'
+      }
+
+      return `${meses} ${meses === 1 ? 'mes' : 'meses'}`
+    }
+
+    return `${anios} ${anios === 1 ? 'año' : 'años'}`
+  }
+
+  const mascotasFiltradas = useMemo(() => {
+    const textoBusqueda = busqueda.trim().toLowerCase()
+
+    if (!textoBusqueda) {
+      return mascotas
+    }
+
+    return mascotas.filter((mascota) => {
+      const cliente = obtenerCliente(mascota.clienteId)
+
+      const textoMascota = [
+        mascota.nombre,
+        mascota.especie,
+        mascota.raza,
+        mascota.sexo,
+        cliente?.nombre,
+        cliente?.apellido,
+      ]
+        .filter(Boolean)
+        .join(' ')
+        .toLowerCase()
+
+      return textoMascota.includes(textoBusqueda)
+    })
+  }, [mascotas, busqueda, clientes])
 
   const abrirNuevaMascota = () => {
-    setFormulario(mascotaVacia)
+    setFormulario({ ...mascotaVacia })
     setMascotaSeleccionada(null)
     setModoEdicion(false)
+    setErrorFormulario('')
     setMostrarFormulario(true)
   }
 
@@ -67,118 +136,203 @@ function Mascotas() {
     setMascotaSeleccionada(mascota)
     setMostrarFormulario(false)
     setModoEdicion(false)
+    setErrorFormulario('')
   }
 
   const abrirEditarMascota = (mascota) => {
     setFormulario({
       ...mascota,
+      clienteId: mascota.clienteId ?? '',
+      peso: mascota.peso ?? '',
     })
 
     setMascotaSeleccionada(mascota)
     setModoEdicion(true)
     setMostrarFormulario(true)
+    setErrorFormulario('')
   }
 
   const cerrarPanel = () => {
-    setFormulario(mascotaVacia)
+    setFormulario({ ...mascotaVacia })
     setMascotaSeleccionada(null)
     setMostrarFormulario(false)
     setModoEdicion(false)
+    setErrorFormulario('')
   }
 
-  const manejarCambio = (e) => {
-    const { name, value } = e.target
+  const manejarCambio = (evento) => {
+    const { name, value } = evento.target
 
-    setFormulario({
-      ...formulario,
-      [name]:
-        name === 'clienteId'
-          ? Number(value)
-          : name === 'peso'
-            ? value
-            : value,
-    })
+    let nuevoValor = value
+
+    if (name === 'nombre' || name === 'raza') {
+      nuevoValor = soloLetras(value)
+    }
+
+    if (name === 'peso') {
+      nuevoValor = soloNumerosDecimales(value)
+    }
+
+    if (name === 'clienteId') {
+      nuevoValor = value ? Number(value) : ''
+    }
+
+    setFormulario((formularioAnterior) => ({
+      ...formularioAnterior,
+      [name]: nuevoValor,
+    }))
+
+    if (errorFormulario) {
+      setErrorFormulario('')
+    }
   }
 
-  const guardarMascota = (e) => {
-    e.preventDefault()
+  const validarFormulario = () => {
+    const nombre = formulario.nombre.trim()
+    const raza = formulario.raza.trim()
+    const peso = Number(formulario.peso)
 
-    if (!formulario.nombre || !formulario.especie || !formulario.clienteId) {
-      alert('Completá nombre, especie y dueño.')
+    if (!formulario.clienteId) {
+      return 'Seleccioná el dueño de la mascota.'
+    }
+
+    if (!nombre) {
+      return 'Ingresá el nombre de la mascota.'
+    }
+
+    if (nombre.length < 2) {
+      return 'El nombre debe tener al menos 2 letras.'
+    }
+
+    if (!formulario.especie) {
+      return 'Seleccioná la especie de la mascota.'
+    }
+
+    if (raza && raza.length < 2) {
+      return 'La raza debe tener al menos 2 letras.'
+    }
+
+    if (
+      formulario.fechaNacimiento &&
+      formulario.fechaNacimiento > fechaActual
+    ) {
+      return 'La fecha de nacimiento no puede ser posterior a la fecha actual.'
+    }
+
+    if (formulario.peso !== '' && (!peso || peso <= 0)) {
+      return 'Ingresá un peso mayor a cero.'
+    }
+
+    return ''
+  }
+
+  const guardarMascota = (evento) => {
+    evento.preventDefault()
+
+    const error = validarFormulario()
+
+    if (error) {
+      setErrorFormulario(error)
       return
     }
 
-    if (modoEdicion) {
-      const mascotasActualizadas = mascotas.map((mascota) => {
-        if (mascota.id === mascotaSeleccionada.id) {
-          return {
-            ...formulario,
-            id: mascotaSeleccionada.id,
-            peso: Number(formulario.peso),
-          }
-        }
+    const datosMascota = {
+      ...formulario,
+      nombre: formulario.nombre.trim(),
+      raza: formulario.raza.trim(),
+      peso:
+        formulario.peso === ''
+          ? ''
+          : Number(formulario.peso),
+      observaciones: formulario.observaciones.trim(),
+    }
 
-        return mascota
-      })
-
-      setMascotas(mascotasActualizadas)
+    if (modoEdicion && mascotaSeleccionada) {
+      setMascotas((mascotasAnteriores) =>
+        mascotasAnteriores.map((mascota) =>
+          mascota.id === mascotaSeleccionada.id
+            ? {
+                ...datosMascota,
+                id: mascotaSeleccionada.id,
+              }
+            : mascota
+        )
+      )
     } else {
       const nuevaMascota = {
-        ...formulario,
+        ...datosMascota,
         id: Date.now(),
-        peso: Number(formulario.peso),
       }
 
-      setMascotas([...mascotas, nuevaMascota])
+      setMascotas((mascotasAnteriores) => [
+        ...mascotasAnteriores,
+        nuevaMascota,
+      ])
     }
 
     cerrarPanel()
   }
 
-  const eliminarMascota = (id) => {
-    const confirmar = window.confirm('¿Seguro que querés eliminar esta mascota?')
+  const eliminarMascota = (mascota) => {
+    const confirmar = window.confirm(
+      `¿Seguro que querés eliminar a ${mascota.nombre}?`
+    )
 
-    if (!confirmar) return
+    if (!confirmar) {
+      return
+    }
 
-    const mascotasActualizadas = mascotas.filter((mascota) => mascota.id !== id)
+    setMascotas((mascotasAnteriores) =>
+      mascotasAnteriores.filter((item) => item.id !== mascota.id)
+    )
 
-    setMascotas(mascotasActualizadas)
-
-    if (mascotaSeleccionada?.id === id) {
+    if (mascotaSeleccionada?.id === mascota.id) {
       cerrarPanel()
     }
   }
 
   return (
     <section className="mascotas-page">
-      <div className="mascotas-header">
+      <header className="mascotas-header">
         <div>
           <h1>Mascotas</h1>
           <p>Registro de mascotas y relación con sus dueños</p>
         </div>
 
-        <button className="btn-nueva-mascota" onClick={abrirNuevaMascota}>
+        <button
+          type="button"
+          className="btn-nueva-mascota"
+          onClick={abrirNuevaMascota}
+        >
           <FaPlus />
           Nueva Mascota
         </button>
-      </div>
+      </header>
 
-      <div className="mascotas-content">
+      <div
+        className={`mascotas-content ${
+          mostrarFormulario || mascotaSeleccionada
+            ? 'con-panel'
+            : 'sin-panel'
+        }`}
+      >
         <div className="mascotas-main-card">
           <div className="mascotas-toolbar">
             <div className="mascotas-search">
               <FaMagnifyingGlass />
 
               <input
-                type="text"
-                placeholder="Buscar mascota por nombre, especie, raza o dueño"
+                type="search"
+                placeholder="Buscar por nombre, especie, raza o dueño"
                 value={busqueda}
-                onChange={(e) => setBusqueda(e.target.value)}
+                onChange={(evento) => setBusqueda(evento.target.value)}
+                aria-label="Buscar mascotas"
               />
             </div>
 
             <span className="mascotas-total">
-              {mascotasFiltradas.length} mascotas
+              {mascotasFiltradas.length}{' '}
+              {mascotasFiltradas.length === 1 ? 'mascota' : 'mascotas'}
             </span>
           </div>
 
@@ -209,43 +363,61 @@ function Mascotas() {
 
                           <div>
                             <strong>{mascota.nombre}</strong>
-                            <small>{mascota.raza}</small>
+                            <small>
+                              {mascota.raza || 'Raza no registrada'}
+                            </small>
                           </div>
                         </div>
                       </td>
 
                       <td>
-                        {cliente?.nombre} {cliente?.apellido}
+                        {cliente
+                          ? `${cliente.nombre} ${cliente.apellido}`
+                          : 'Dueño no encontrado'}
                       </td>
 
-                      <td>{mascota.especie}</td>
+                      <td>
+                        <span className="mascota-especie">
+                          {mascota.especie}
+                        </span>
+                      </td>
 
-                      <td>{mascota.sexo}</td>
+                      <td>{mascota.sexo || 'No registrado'}</td>
 
-                      <td>{mascota.peso} kg</td>
+                      <td>
+                        {mascota.peso
+                          ? `${mascota.peso} kg`
+                          : 'No registrado'}
+                      </td>
 
                       <td>
                         <div className="acciones">
                           <button
+                            type="button"
                             className="btn-accion ver"
                             onClick={() => abrirVerMascota(mascota)}
                             title="Ver mascota"
+                            aria-label={`Ver a ${mascota.nombre}`}
                           >
                             <FaEye />
                           </button>
 
                           <button
+                            type="button"
                             className="btn-accion editar"
                             onClick={() => abrirEditarMascota(mascota)}
                             title="Editar mascota"
+                            aria-label={`Editar a ${mascota.nombre}`}
                           >
                             <FaPen />
                           </button>
 
                           <button
+                            type="button"
                             className="btn-accion eliminar"
-                            onClick={() => eliminarMascota(mascota.id)}
+                            onClick={() => eliminarMascota(mascota)}
                             title="Eliminar mascota"
+                            aria-label={`Eliminar a ${mascota.nombre}`}
                           >
                             <FaTrash />
                           </button>
@@ -258,7 +430,9 @@ function Mascotas() {
                 {mascotasFiltradas.length === 0 && (
                   <tr>
                     <td colSpan="6" className="sin-resultados">
-                      No se encontraron mascotas.
+                      {busqueda
+                        ? 'No se encontraron mascotas con esa búsqueda.'
+                        : 'Todavía no hay mascotas registradas.'}
                     </td>
                   </tr>
                 )}
@@ -269,13 +443,21 @@ function Mascotas() {
 
         {(mostrarFormulario || mascotaSeleccionada) && (
           <aside className="mascotas-side-card">
-            <button className="btn-cerrar" onClick={cerrarPanel}>
+            <button
+              type="button"
+              className="btn-cerrar"
+              onClick={cerrarPanel}
+              title="Cerrar panel"
+              aria-label="Cerrar panel"
+            >
               <FaXmark />
             </button>
 
             {mostrarFormulario ? (
               <>
-                <h2>{modoEdicion ? 'Editar Mascota' : 'Nueva Mascota'}</h2>
+                <h2>
+                  {modoEdicion ? 'Editar Mascota' : 'Nueva Mascota'}
+                </h2>
 
                 <p>
                   {modoEdicion
@@ -283,9 +465,17 @@ function Mascotas() {
                     : 'Cargá los datos de la mascota y asignale un dueño'}
                 </p>
 
-                <form className="mascota-form" onSubmit={guardarMascota}>
-                  <label>Dueño</label>
+                <form
+                  className="mascota-form"
+                  onSubmit={guardarMascota}
+                  noValidate
+                >
+                  <label htmlFor="mascota-duenio">
+                    Dueño <span>*</span>
+                  </label>
+
                   <select
+                    id="mascota-duenio"
                     name="clienteId"
                     value={formulario.clienteId}
                     onChange={manejarCambio}
@@ -299,16 +489,27 @@ function Mascotas() {
                     ))}
                   </select>
 
-                  <label>Nombre</label>
+                  <label htmlFor="mascota-nombre">
+                    Nombre <span>*</span>
+                  </label>
+
                   <input
+                    id="mascota-nombre"
                     type="text"
                     name="nombre"
                     value={formulario.nombre}
                     onChange={manejarCambio}
+                    maxLength={50}
+                    placeholder="Ejemplo: Mora"
+                    autoComplete="off"
                   />
 
-                  <label>Especie</label>
+                  <label htmlFor="mascota-especie">
+                    Especie <span>*</span>
+                  </label>
+
                   <select
+                    id="mascota-especie"
                     name="especie"
                     value={formulario.especie}
                     onChange={manejarCambio}
@@ -321,24 +522,36 @@ function Mascotas() {
                     <option value="Otro">Otro</option>
                   </select>
 
-                  <label>Raza</label>
+                  <label htmlFor="mascota-raza">Raza</label>
+
                   <input
+                    id="mascota-raza"
                     type="text"
                     name="raza"
                     value={formulario.raza}
                     onChange={manejarCambio}
+                    maxLength={50}
+                    placeholder="Ejemplo: Labrador"
+                    autoComplete="off"
                   />
 
-                  <label>Fecha de nacimiento</label>
+                  <label htmlFor="mascota-fecha">
+                    Fecha de nacimiento
+                  </label>
+
                   <input
+                    id="mascota-fecha"
                     type="date"
                     name="fechaNacimiento"
                     value={formulario.fechaNacimiento}
                     onChange={manejarCambio}
+                    max={fechaActual}
                   />
 
-                  <label>Sexo</label>
+                  <label htmlFor="mascota-sexo">Sexo</label>
+
                   <select
+                    id="mascota-sexo"
                     name="sexo"
                     value={formulario.sexo}
                     onChange={manejarCambio}
@@ -348,25 +561,45 @@ function Mascotas() {
                     <option value="Hembra">Hembra</option>
                   </select>
 
-                  <label>Peso</label>
+                  <label htmlFor="mascota-peso">Peso en kilogramos</label>
+
                   <input
-                    type="number"
+                    id="mascota-peso"
+                    type="text"
                     name="peso"
                     value={formulario.peso}
                     onChange={manejarCambio}
-                    step="0.1"
+                    inputMode="decimal"
+                    maxLength={7}
+                    placeholder="Ejemplo: 12.5"
+                    autoComplete="off"
                   />
 
-                  <label>Observaciones</label>
+                  <label htmlFor="mascota-observaciones">
+                    Observaciones
+                  </label>
+
                   <textarea
+                    id="mascota-observaciones"
                     name="observaciones"
                     value={formulario.observaciones}
                     onChange={manejarCambio}
+                    maxLength={500}
+                    placeholder="Información adicional sobre la mascota"
                   />
+
+                  {errorFormulario && (
+                    <div className="mascota-form-error" role="alert">
+                      {errorFormulario}
+                    </div>
+                  )}
 
                   <button type="submit" className="btn-guardar">
                     <FaFloppyDisk />
-                    Guardar Mascota
+
+                    {modoEdicion
+                      ? 'Guardar Cambios'
+                      : 'Guardar Mascota'}
                   </button>
                 </form>
               </>
@@ -375,17 +608,35 @@ function Mascotas() {
                 <h2>Ficha de Mascota</h2>
                 <p>Información registrada de la mascota</p>
 
-                <div className="mascota-detalle">
-                  <div>
-                    <span>Nombre</span>
-                    <strong>{mascotaSeleccionada.nombre}</strong>
+                <div className="mascota-detalle-encabezado">
+                  <div className="mascota-detalle-icono">
+                    <FaPaw />
                   </div>
 
                   <div>
+                    <strong>{mascotaSeleccionada.nombre}</strong>
+                    <span>
+                      {mascotaSeleccionada.especie}
+                      {mascotaSeleccionada.raza
+                        ? ` · ${mascotaSeleccionada.raza}`
+                        : ''}
+                    </span>
+                  </div>
+                </div>
+
+                <div className="mascota-detalle">
+                  <div>
                     <span>Dueño</span>
                     <strong>
-                      {obtenerCliente(mascotaSeleccionada.clienteId)?.nombre}{' '}
-                      {obtenerCliente(mascotaSeleccionada.clienteId)?.apellido}
+                      {obtenerCliente(mascotaSeleccionada.clienteId)
+                        ? `${obtenerCliente(
+                            mascotaSeleccionada.clienteId
+                          ).nombre} ${
+                            obtenerCliente(
+                              mascotaSeleccionada.clienteId
+                            ).apellido
+                          }`
+                        : 'Dueño no encontrado'}
                     </strong>
                   </div>
 
@@ -396,33 +647,60 @@ function Mascotas() {
 
                   <div>
                     <span>Raza</span>
-                    <strong>{mascotaSeleccionada.raza}</strong>
+                    <strong>
+                      {mascotaSeleccionada.raza || 'No registrada'}
+                    </strong>
                   </div>
 
                   <div>
                     <span>Fecha de nacimiento</span>
-                    <strong>{mascotaSeleccionada.fechaNacimiento}</strong>
+                    <strong>
+                      {formatearFecha(
+                        mascotaSeleccionada.fechaNacimiento
+                      )}
+                    </strong>
+                  </div>
+
+                  <div>
+                    <span>Edad aproximada</span>
+                    <strong>
+                      {calcularEdad(
+                        mascotaSeleccionada.fechaNacimiento
+                      )}
+                    </strong>
                   </div>
 
                   <div>
                     <span>Sexo</span>
-                    <strong>{mascotaSeleccionada.sexo}</strong>
+                    <strong>
+                      {mascotaSeleccionada.sexo || 'No registrado'}
+                    </strong>
                   </div>
 
                   <div>
                     <span>Peso</span>
-                    <strong>{mascotaSeleccionada.peso} kg</strong>
+                    <strong>
+                      {mascotaSeleccionada.peso
+                        ? `${mascotaSeleccionada.peso} kg`
+                        : 'No registrado'}
+                    </strong>
                   </div>
 
                   <div>
                     <span>Observaciones</span>
-                    <strong>{mascotaSeleccionada.observaciones}</strong>
+                    <strong>
+                      {mascotaSeleccionada.observaciones ||
+                        'Sin observaciones'}
+                    </strong>
                   </div>
                 </div>
 
                 <button
+                  type="button"
                   className="btn-editar-detalle"
-                  onClick={() => abrirEditarMascota(mascotaSeleccionada)}
+                  onClick={() =>
+                    abrirEditarMascota(mascotaSeleccionada)
+                  }
                 >
                   <FaPen />
                   Editar Mascota
