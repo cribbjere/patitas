@@ -37,7 +37,7 @@ function Login() {
         <div className="login-card">
 
           <h2>Iniciar Sesión</h2>
-          <p className="login-subtitle">Ingresá tus datos</p>
+          <p className="login-subtitle">Ingresar tus datos</p>
 
           <form onSubmit={handleSubmit}>
             <label>Usuario</label>
@@ -46,7 +46,7 @@ function Login() {
               <span className="input-icon">♡</span>
               <input
                 type="text"
-                placeholder="Ingresá tu usuario"
+                placeholder="Ingrese su usuario"
               />
             </div>
 
@@ -56,7 +56,7 @@ function Login() {
               <span className="input-icon">▣</span>
               <input
                 type="password"
-                placeholder="Ingresá tu contraseña"
+                placeholder="Ingrese su contraseña"
               />
             </div>
 
