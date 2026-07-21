@@ -1,9 +1,9 @@
-.configuracion-page {
+.consultas-page {
     width: 100%;
     font-family: 'Poppins', sans-serif;
 }
 
-.configuracion-header {
+.consultas-header {
     display: flex;
     justify-content: space-between;
     align-items: center;
@@ -11,26 +11,26 @@
     margin-bottom: 20px;
 }
 
-.configuracion-header h1 {
+.consultas-header h1 {
     margin: 0;
     color: #1d2944;
     font-size: 30px;
     font-weight: 800;
 }
 
-.configuracion-header p {
+.consultas-header p {
     margin: 6px 0 0;
     color: #7c849d;
     font-size: 17px;
     font-weight: 400;
 }
 
-.btn-editar-configuracion,
-.btn-cancelar-configuracion {
+.btn-nueva-consulta {
     height: 42px;
     border: none;
     border-radius: 8px;
     padding: 0 18px;
+    background-color: #2f8c80;
     color: white;
     font-size: 15px;
     font-weight: 600;
@@ -38,215 +38,311 @@
     align-items: center;
     gap: 9px;
     cursor: pointer;
+    transition: background-color 0.2s ease, transform 0.2s ease;
 }
 
-.btn-editar-configuracion {
-    background-color: #2f8c80;
-}
-
-.btn-editar-configuracion:hover {
+.btn-nueva-consulta:hover {
     background-color: #28776d;
+    transform: translateY(-1px);
 }
 
-.btn-cancelar-configuracion {
-    background-color: #b42318;
-}
-
-.btn-cancelar-configuracion:hover {
-    background-color: #8f1c12;
-}
-
-.configuracion-content {
+.consultas-content {
     display: grid;
     grid-template-columns: minmax(0, 1fr) 390px;
     gap: 18px;
     align-items: start;
 }
 
-.configuracion-main {
-    display: flex;
-    flex-direction: column;
-    gap: 18px;
+.consultas-main-card,
+.consultas-side-card {
+    background-color: white;
+    border-radius: 12px;
+    box-shadow: 0 8px 18px rgba(0, 0, 0, 0.12);
+}
+
+.consultas-main-card {
+    padding: 18px;
     min-width: 0;
 }
 
-.configuracion-side {
+.consultas-toolbar {
     display: flex;
-    flex-direction: column;
-    gap: 18px;
+    justify-content: space-between;
+    align-items: center;
+    gap: 14px;
+    margin-bottom: 16px;
 }
 
-.config-card {
-    background-color: #ffffff;
-    border-radius: 12px;
-    padding: 20px;
-    box-shadow: 0px 8px 18px rgba(0, 0, 0, 0.12);
-}
-
-.config-card-header {
+.consultas-search {
+    flex: 1;
+    height: 42px;
+    border: 1px solid #d7d7d7;
+    border-radius: 8px;
+    padding: 0 13px;
     display: flex;
     align-items: center;
     gap: 10px;
-    margin-bottom: 18px;
+    color: #7c849d;
+    background-color: white;
+    transition: border-color 0.2s ease, box-shadow 0.2s ease;
 }
 
-.config-card-header svg {
-    color: #2f8c80;
-    font-size: 20px;
+.consultas-search:focus-within {
+    border-color: #2f8c80;
+    box-shadow: 0 0 0 3px rgba(47, 140, 128, 0.12);
 }
 
-.config-card-header h2 {
-    margin: 0;
+.consultas-search input {
+    width: 100%;
+    border: none;
+    outline: none;
     color: #1d2944;
-    font-size: 21px;
+    font-size: 14px;
+    font-family: 'Poppins', sans-serif;
+    background-color: transparent;
+}
+
+.consultas-search input::placeholder {
+    color: #9fa8b8;
+}
+
+.consultas-total {
+    color: #7c849d;
+    font-size: 14px;
+    font-weight: 500;
+    white-space: nowrap;
+}
+
+.consultas-table-wrapper {
+    width: 100%;
+    overflow-x: auto;
+}
+
+.consultas-table {
+    width: 100%;
+    border-collapse: collapse;
+    min-width: 860px;
+}
+
+.consultas-table th {
+    color: #7c849d;
+    font-size: 14px;
+    font-weight: 600;
+    text-align: left;
+    padding: 12px 8px;
+    border-bottom: 1px solid #eeeeee;
+}
+
+.consultas-table td {
+    color: #1d2944;
+    font-size: 14px;
+    font-weight: 400;
+    padding: 14px 8px;
+    border-bottom: 1px solid #eeeeee;
+    vertical-align: middle;
+}
+
+.consultas-table tbody tr {
+    transition: background-color 0.2s ease;
+}
+
+.consultas-table tbody tr:hover {
+    background-color: #f8fbfa;
+}
+
+.texto-recortado {
+    max-width: 220px;
+    overflow: hidden;
+    text-overflow: ellipsis;
+    white-space: nowrap;
+}
+
+.consulta-fecha {
+    display: flex;
+    align-items: center;
+    gap: 11px;
+}
+
+.consulta-icono {
+    width: 38px;
+    height: 38px;
+    min-width: 38px;
+    border-radius: 50%;
+    background-color: #dcefe9;
+    color: #2f8c80;
+    display: flex;
+    align-items: center;
+    justify-content: center;
+    font-size: 18px;
+}
+
+.consulta-fecha strong {
+    display: block;
+    color: #1d2944;
+    font-size: 14px;
+    font-weight: 700;
+}
+
+.consulta-fecha small {
+    display: block;
+    color: #7c849d;
+    margin-top: 3px;
+    font-size: 12px;
+    font-weight: 400;
+}
+
+.consultas-page .acciones {
+    display: flex;
+    align-items: center;
+    gap: 7px;
+}
+
+.consultas-page .btn-accion {
+    width: 32px;
+    height: 32px;
+    border: none;
+    border-radius: 7px;
+    color: white;
+    display: flex;
+    justify-content: center;
+    align-items: center;
+    cursor: pointer;
+    transition: transform 0.2s ease, opacity 0.2s ease;
+}
+
+.consultas-page .btn-accion:hover {
+    transform: translateY(-1px);
+    opacity: 0.9;
+}
+
+.consultas-page .btn-accion.ver {
+    background-color: #2f8c80;
+}
+
+.consultas-page .btn-accion.editar {
+    background-color: #1d2944;
+}
+
+.consultas-page .btn-accion.eliminar {
+    background-color: #b42318;
+}
+
+.sin-resultados {
+    text-align: center;
+    color: #7c849d !important;
+    padding: 28px !important;
+}
+
+.consultas-side-card {
+    position: relative;
+    padding: 22px;
+    max-height: calc(100vh - 125px);
+    overflow-y: auto;
+}
+
+.consultas-page .btn-cerrar {
+    position: absolute;
+    top: 14px;
+    right: 14px;
+    width: 34px;
+    height: 34px;
+    border: none;
+    border-radius: 50%;
+    background-color: #f3f4f6;
+    color: #7c849d;
+    font-size: 18px;
+    display: flex;
+    align-items: center;
+    justify-content: center;
+    cursor: pointer;
+    transition: background-color 0.2s ease, color 0.2s ease;
+}
+
+.consultas-page .btn-cerrar:hover {
+    background-color: #fee2e2;
+    color: #b42318;
+}
+
+.consultas-side-card h2 {
+    margin: 0;
+    padding-right: 42px;
+    color: #1d2944;
+    font-size: 24px;
     font-weight: 800;
 }
 
-.config-form-grid {
-    display: grid;
-    grid-template-columns: 1fr 1fr;
-    gap: 16px;
+.consultas-side-card > p {
+    margin: 6px 0 20px;
+    color: #7c849d;
+    font-size: 14px;
+    font-weight: 400;
 }
 
-.config-field {
+.consulta-form {
     display: flex;
     flex-direction: column;
 }
 
-.config-field label {
+.consulta-form-error {
+    margin-bottom: 16px;
+    padding: 11px 12px;
+    border-left: 4px solid #b42318;
+    border-radius: 8px;
+    background-color: #fff1f1;
+    color: #b42318;
+    font-size: 13px;
+    font-weight: 600;
+    display: flex;
+    align-items: center;
+    gap: 9px;
+}
+
+.consulta-form label {
     color: #1d2944;
     font-size: 14px;
     font-weight: 500;
     margin-bottom: 7px;
 }
 
-.config-field input,
-.config-field select {
+.consulta-form input,
+.consulta-form select {
     height: 40px;
     border: 1px solid #d7d7d7;
     border-radius: 8px;
     padding: 0 12px;
+    margin-bottom: 14px;
     outline: none;
     color: #1d2944;
     font-size: 14px;
     font-family: 'Poppins', sans-serif;
     background-color: white;
+    transition: border-color 0.2s ease, box-shadow 0.2s ease;
 }
 
-.config-field input:focus,
-.config-field select:focus {
-    border-color: #2f8c80;
-}
-
-.config-field input:disabled,
-.config-field select:disabled,
-.horario-item input:disabled {
-    background-color: #f2f2f2;
-    color: #7c849d;
-    cursor: not-allowed;
-}
-
-.horarios-lista {
-    display: flex;
-    flex-direction: column;
-    gap: 12px;
-}
-
-.horario-item {
-    display: grid;
-    grid-template-columns: 120px 1fr 20px 1fr 100px;
-    align-items: center;
-    gap: 10px;
-    padding: 12px;
-    border-radius: 10px;
-    background-color: #f4efe7;
-}
-
-.horario-item strong {
-    color: #1d2944;
-    font-size: 14px;
-    font-weight: 700;
-}
-
-.horario-item span {
-    color: #7c849d;
-    font-size: 14px;
-    text-align: center;
-}
-
-.horario-item input[type='time'] {
-    height: 38px;
+.consulta-form textarea {
+    min-height: 78px;
     border: 1px solid #d7d7d7;
     border-radius: 8px;
-    padding: 0 10px;
+    padding: 10px 12px;
+    margin-bottom: 14px;
+    outline: none;
+    resize: vertical;
     color: #1d2944;
     font-size: 14px;
     font-family: 'Poppins', sans-serif;
-    background-color: white;
+    transition: border-color 0.2s ease, box-shadow 0.2s ease;
 }
 
-.checkbox-horario,
-.checkbox-configuracion {
-    display: flex;
-    align-items: center;
-    gap: 8px;
-    color: #1d2944;
-    font-size: 14px;
-    font-weight: 500;
+.consulta-form input:focus,
+.consulta-form select:focus,
+.consulta-form textarea:focus {
+    border-color: #2f8c80;
+    box-shadow: 0 0 0 3px rgba(47, 140, 128, 0.12);
 }
 
-.checkbox-horario input,
-.checkbox-configuracion input {
-    width: 16px;
-    height: 16px;
-    margin: 0;
-}
-
-.roles-lista {
-    display: flex;
-    flex-direction: column;
-    gap: 10px;
-}
-
-.rol-item {
-    padding: 12px;
-    border-radius: 10px;
-    background-color: #f4efe7;
-    border-left: 4px solid #2f8c80;
-}
-
-.rol-item strong {
-    display: block;
-    color: #1d2944;
-    font-size: 14px;
-    font-weight: 700;
-    margin-bottom: 4px;
-}
-
-.rol-item span {
-    display: block;
-    color: #7c849d;
-    font-size: 13px;
-    font-weight: 400;
-}
-
-.modulos-lista {
-    display: flex;
-    flex-wrap: wrap;
-    gap: 8px;
-}
-
-.modulos-lista span {
-    background-color: #dcefe9;
-    color: #2f8c80;
-    border-radius: 8px;
-    padding: 6px 10px;
-    font-size: 13px;
-    font-weight: 700;
-}
-
-.btn-guardar-configuracion {
-    height: 44px;
+.consultas-page .btn-guardar,
+.consultas-page .btn-editar-detalle {
+    height: 42px;
     border: none;
     border-radius: 8px;
     background-color: #2f8c80;
@@ -258,39 +354,140 @@
     align-items: center;
     gap: 9px;
     cursor: pointer;
+    transition: background-color 0.2s ease, transform 0.2s ease;
 }
 
-.btn-guardar-configuracion:hover {
+.consultas-page .btn-guardar:hover,
+.consultas-page .btn-editar-detalle:hover {
     background-color: #28776d;
+    transform: translateY(-1px);
+}
+
+.consulta-detalle {
+    display: flex;
+    flex-direction: column;
+    gap: 16px;
+    margin-bottom: 22px;
+}
+
+.consulta-detalle div {
+    padding: 12px 13px;
+    border: 1px solid #eeeeee;
+    border-radius: 9px;
+    background-color: #fafafa;
+}
+
+.consulta-detalle span {
+    display: block;
+    color: #7c849d;
+    font-size: 13px;
+    font-weight: 400;
+    margin-bottom: 4px;
+}
+
+.consulta-detalle strong {
+    color: #1d2944;
+    font-size: 15px;
+    font-weight: 700;
+    white-space: pre-wrap;
+    overflow-wrap: anywhere;
+}
+
+.historial-clinico {
+    background-color: #f4efe7;
+    border-radius: 10px;
+    padding: 14px;
+    margin-bottom: 18px;
+}
+
+.historial-clinico h3 {
+    margin: 0 0 12px;
+    color: #1d2944;
+    font-size: 18px;
+    font-weight: 800;
+}
+
+.historial-item {
+    background-color: white;
+    border-radius: 8px;
+    padding: 10px 12px;
+    margin-bottom: 9px;
+    border-left: 4px solid #2f8c80;
+}
+
+.historial-item:last-child {
+    margin-bottom: 0;
+}
+
+.historial-item-activo {
+    box-shadow: 0 0 0 2px rgba(47, 140, 128, 0.18);
+}
+
+.historial-item strong {
+    display: block;
+    color: #1d2944;
+    font-size: 14px;
+    font-weight: 700;
+    margin-bottom: 4px;
+}
+
+.historial-item span {
+    color: #7c849d;
+    font-size: 13px;
+    font-weight: 400;
 }
 
 @media (max-width: 1100px) {
-    .configuracion-content {
+    .consultas-content {
         grid-template-columns: 1fr;
+    }
+
+    .consultas-side-card {
+        max-height: none;
     }
 }
 
 @media (max-width: 768px) {
-    .configuracion-header {
+    .consultas-header {
         flex-direction: column;
         align-items: flex-start;
     }
 
-    .btn-editar-configuracion,
-    .btn-cancelar-configuracion {
+    .btn-nueva-consulta {
         width: 100%;
         justify-content: center;
     }
 
-    .config-form-grid {
-        grid-template-columns: 1fr;
+    .consultas-toolbar {
+        flex-direction: column;
+        align-items: stretch;
     }
 
-    .horario-item {
-        grid-template-columns: 1fr;
+    .consultas-total {
+        align-self: flex-end;
     }
 
-    .horario-item span {
-        display: none;
+    .consultas-main-card,
+    .consultas-side-card {
+        border-radius: 10px;
+    }
+}
+
+@media (max-width: 520px) {
+    .consultas-header h1 {
+        font-size: 26px;
+    }
+
+    .consultas-header p {
+        font-size: 15px;
+    }
+
+    .consultas-main-card,
+    .consultas-side-card {
+        padding: 14px;
+    }
+
+    .consultas-side-card h2 {
+        font-size: 21px;
     }
 }

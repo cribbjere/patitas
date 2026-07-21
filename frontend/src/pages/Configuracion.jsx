@@ -1,555 +1,623 @@
-import { useState } from 'react'
+import { useMemo, useState } from 'react'
+import {
+  FaMagnifyingGlass,
+  FaPlus,
+  FaEye,
+  FaPen,
+  FaTrash,
+  FaFloppyDisk,
+  FaXmark,
+  FaStethoscope,
+  FaTriangleExclamation,
+} from 'react-icons/fa6'
 
-const configuracionInicial = {
-  nombreVeterinaria: 'Veterinaria Patitas',
-  telefono: '3415551234',
-  email: 'contacto@patitas.com',
-  direccion: 'San Martín 1240',
-  ciudad: 'Correa',
-  moneda: 'ARS',
-  idioma: 'Español',
-  tema: 'Claro',
-  backup: 'Manual',
-  estadoSistema: true,
-}
+import {
+  clientes as clientesIniciales,
+  mascotas as mascotasIniciales,
+} from '../data/mockData'
 
-const horariosIniciales = [
+import './Consultas.css'
+
+const consultasIniciales = [
   {
     id: 1,
-    dia: 'Lunes',
-    apertura: '08:00',
-    cierre: '18:00',
-    activo: true,
+    mascotaId: 1,
+    fecha: '2026-06-20',
+    peso: 18.5,
+    temperatura: 38.2,
+    diagnostico: 'Control general sin complicaciones.',
+    tratamiento: 'Continuar alimentación habitual.',
+    observaciones: 'Paciente tranquilo durante la revisión.',
   },
   {
     id: 2,
-    dia: 'Martes',
-    apertura: '08:00',
-    cierre: '18:00',
-    activo: true,
+    mascotaId: 2,
+    fecha: '2026-06-21',
+    peso: 4.2,
+    temperatura: 38.6,
+    diagnostico: 'Revisión por vacunación.',
+    tratamiento: 'Aplicar refuerzo según calendario.',
+    observaciones: 'Se recomienda próximo control en 30 días.',
   },
   {
     id: 3,
-    dia: 'Miércoles',
-    apertura: '08:00',
-    cierre: '18:00',
-    activo: true,
-  },
-  {
-    id: 4,
-    dia: 'Jueves',
-    apertura: '08:00',
-    cierre: '18:00',
-    activo: true,
-  },
-  {
-    id: 5,
-    dia: 'Viernes',
-    apertura: '08:00',
-    cierre: '18:00',
-    activo: true,
-  },
-  {
-    id: 6,
-    dia: 'Sábado',
-    apertura: '09:00',
-    cierre: '13:00',
-    activo: true,
-  },
-  {
-    id: 7,
-    dia: 'Domingo',
-    apertura: '',
-    cierre: '',
-    activo: false,
+    mascotaId: 3,
+    fecha: '2026-06-22',
+    peso: 5.1,
+    temperatura: 38.4,
+    diagnostico: 'Control de rutina.',
+    tratamiento: 'Sin medicación indicada.',
+    observaciones: 'Buen estado general.',
   },
 ]
 
-const rolesSistema = [
-  {
-    rol: 'Administrador',
-    descripcion: 'Acceso total al sistema',
-  },
-  {
-    rol: 'Recepcionista',
-    descripcion: 'Clientes, mascotas y turnos',
-  },
-  {
-    rol: 'Veterinario',
-    descripcion: 'Consultas, mascotas y vacunaciones',
-  },
-  {
-    rol: 'Ventas',
-    descripcion: 'Productos, stock y ventas',
-  },
-  {
-    rol: 'Higiene',
-    descripcion: 'Servicios de higiene',
-  },
-]
+const consultaVacia = {
+  mascotaId: '',
+  fecha: '',
+  peso: '',
+  temperatura: '',
+  diagnostico: '',
+  tratamiento: '',
+  observaciones: '',
+}
 
-const modulosSistema = [
-  'Clientes',
-  'Mascotas',
-  'Turnos',
-  'Consultas',
-  'Vacunaciones',
-  'Higiene',
-  'Productos',
-  'Stock',
-  'Ventas',
-  'Reportes',
-  'Usuarios',
-]
+function Consultas() {
+  const [clientes] = useState(clientesIniciales)
+  const [mascotas] = useState(mascotasIniciales)
+  const [consultas, setConsultas] = useState(consultasIniciales)
+  const [busqueda, setBusqueda] = useState('')
+  const [mostrarFormulario, setMostrarFormulario] = useState(false)
+  const [consultaSeleccionada, setConsultaSeleccionada] = useState(null)
+  const [modoEdicion, setModoEdicion] = useState(false)
+  const [formulario, setFormulario] = useState(consultaVacia)
+  const [errorFormulario, setErrorFormulario] = useState('')
 
-function Configuracion() {
-  const [configuracion, setConfiguracion] = useState(configuracionInicial)
-  const [horarios, setHorarios] = useState(horariosIniciales)
-  const [editar, setEditar] = useState(false)
-
-  const cambiarConfiguracion = (e) => {
-    const { name, value, type, checked } = e.target
-
-    setConfiguracion({
-      ...configuracion,
-      [name]: type === 'checkbox' ? checked : value,
-    })
+  const obtenerMascota = (mascotaId) => {
+    return mascotas.find((mascota) => mascota.id === Number(mascotaId))
   }
 
-  const cambiarHorario = (id, campo, valor) => {
-    const nuevosHorarios = horarios.map((horario) => {
-      if (horario.id === id) {
-        return {
-          ...horario,
-          [campo]: valor,
-        }
-      }
+  const obtenerClienteDeMascota = (mascotaId) => {
+    const mascota = obtenerMascota(mascotaId)
 
-      return horario
-    })
+    if (!mascota) return null
 
-    setHorarios(nuevosHorarios)
+    return clientes.find((cliente) => cliente.id === mascota.clienteId)
   }
 
-  const guardarConfiguracion = () => {
+  const formatearFecha = (fecha) => {
+    if (!fecha) return 'Sin fecha'
+
+    const fechaLocal = new Date(`${fecha}T00:00:00`)
+
+    if (Number.isNaN(fechaLocal.getTime())) return fecha
+
+    return fechaLocal.toLocaleDateString('es-AR')
+  }
+
+  const consultasFiltradas = useMemo(() => {
+    const termino = busqueda.trim().toLowerCase()
+
+    return consultas.filter((consulta) => {
+      const mascota = obtenerMascota(consulta.mascotaId)
+      const cliente = obtenerClienteDeMascota(consulta.mascotaId)
+
+      const texto = `
+        ${consulta.fecha}
+        ${consulta.diagnostico}
+        ${consulta.tratamiento}
+        ${consulta.observaciones}
+        ${mascota?.nombre || ''}
+        ${mascota?.especie || ''}
+        ${cliente?.nombre || ''}
+        ${cliente?.apellido || ''}
+      `.toLowerCase()
+
+      return texto.includes(termino)
+    })
+  }, [busqueda, consultas, clientes, mascotas])
+
+  const historialMascota = useMemo(() => {
+    if (!consultaSeleccionada) return []
+
+    return consultas
+      .filter(
+        (consulta) =>
+          consulta.mascotaId === consultaSeleccionada.mascotaId
+      )
+      .sort((a, b) => new Date(b.fecha) - new Date(a.fecha))
+  }, [consultaSeleccionada, consultas])
+
+  const abrirNuevaConsulta = () => {
+    setFormulario(consultaVacia)
+    setConsultaSeleccionada(null)
+    setModoEdicion(false)
+    setErrorFormulario('')
+    setMostrarFormulario(true)
+  }
+
+  const abrirVerConsulta = (consulta) => {
+    setConsultaSeleccionada(consulta)
+    setMostrarFormulario(false)
+    setModoEdicion(false)
+    setErrorFormulario('')
+  }
+
+  const abrirEditarConsulta = (consulta) => {
+    setFormulario({
+      mascotaId: consulta.mascotaId,
+      fecha: consulta.fecha,
+      peso: consulta.peso ?? '',
+      temperatura: consulta.temperatura ?? '',
+      diagnostico: consulta.diagnostico,
+      tratamiento: consulta.tratamiento,
+      observaciones: consulta.observaciones,
+    })
+
+    setConsultaSeleccionada(consulta)
+    setModoEdicion(true)
+    setErrorFormulario('')
+    setMostrarFormulario(true)
+  }
+
+  const cerrarPanel = () => {
+    setFormulario(consultaVacia)
+    setConsultaSeleccionada(null)
+    setMostrarFormulario(false)
+    setModoEdicion(false)
+    setErrorFormulario('')
+  }
+
+  const manejarCambio = (e) => {
+    const { name, value } = e.target
+
+    setFormulario((formularioActual) => ({
+      ...formularioActual,
+      [name]: name === 'mascotaId' && value ? Number(value) : value,
+    }))
+
+    if (errorFormulario) {
+      setErrorFormulario('')
+    }
+  }
+
+  const validarFormulario = () => {
+    if (!formulario.mascotaId) {
+      return 'Seleccioná una mascota.'
+    }
+
+    if (!formulario.fecha) {
+      return 'Ingresá la fecha de la consulta.'
+    }
+
+    if (!formulario.peso || Number(formulario.peso) <= 0) {
+      return 'Ingresá un peso válido.'
+    }
+
     if (
-      configuracion.nombreVeterinaria === '' ||
-      configuracion.telefono === '' ||
-      configuracion.direccion === ''
+      !formulario.temperatura ||
+      Number(formulario.temperatura) < 30 ||
+      Number(formulario.temperatura) > 45
     ) {
-      alert('Completá nombre, teléfono y dirección.')
+      return 'Ingresá una temperatura válida entre 30 °C y 45 °C.'
+    }
+
+    if (!formulario.diagnostico.trim()) {
+      return 'Ingresá el diagnóstico.'
+    }
+
+    if (!formulario.tratamiento.trim()) {
+      return 'Ingresá el tratamiento.'
+    }
+
+    return ''
+  }
+
+  const guardarConsulta = (e) => {
+    e.preventDefault()
+
+    const error = validarFormulario()
+
+    if (error) {
+      setErrorFormulario(error)
       return
     }
 
-    setEditar(false)
-    alert('Configuración guardada correctamente.')
+    const datosConsulta = {
+      mascotaId: Number(formulario.mascotaId),
+      fecha: formulario.fecha,
+      peso: Number(formulario.peso),
+      temperatura: Number(formulario.temperatura),
+      diagnostico: formulario.diagnostico.trim(),
+      tratamiento: formulario.tratamiento.trim(),
+      observaciones: formulario.observaciones.trim(),
+    }
+
+    if (modoEdicion && consultaSeleccionada) {
+      setConsultas((consultasActuales) =>
+        consultasActuales.map((consulta) =>
+          consulta.id === consultaSeleccionada.id
+            ? { ...consulta, ...datosConsulta }
+            : consulta
+        )
+      )
+    } else {
+      setConsultas((consultasActuales) => [
+        ...consultasActuales,
+        {
+          id: Date.now(),
+          ...datosConsulta,
+        },
+      ])
+    }
+
+    cerrarPanel()
   }
 
-  const cancelarEdicion = () => {
-    setConfiguracion(configuracionInicial)
-    setHorarios(horariosIniciales)
-    setEditar(false)
+  const eliminarConsulta = (id) => {
+    const confirmar = window.confirm(
+      '¿Seguro que querés eliminar esta consulta?'
+    )
+
+    if (!confirmar) return
+
+    setConsultas((consultasActuales) =>
+      consultasActuales.filter((consulta) => consulta.id !== id)
+    )
+
+    if (consultaSeleccionada?.id === id) {
+      cerrarPanel()
+    }
   }
 
-  const estilos = {
-    pagina: {
-      width: '100%',
-      fontFamily: 'Poppins, sans-serif',
-    },
-    header: {
-      display: 'flex',
-      justifyContent: 'space-between',
-      alignItems: 'center',
-      gap: '18px',
-      marginBottom: '20px',
-    },
-    titulo: {
-      margin: 0,
-      color: '#1d2944',
-      fontSize: '30px',
-      fontWeight: 800,
-    },
-    subtitulo: {
-      margin: '6px 0 0',
-      color: '#7c849d',
-      fontSize: '17px',
-    },
-    botonEditar: {
-      height: '42px',
-      border: 'none',
-      borderRadius: '8px',
-      padding: '0 18px',
-      backgroundColor: '#2f8c80',
-      color: 'white',
-      fontSize: '15px',
-      fontWeight: 600,
-      cursor: 'pointer',
-    },
-    botonCancelar: {
-      height: '42px',
-      border: 'none',
-      borderRadius: '8px',
-      padding: '0 18px',
-      backgroundColor: '#b42318',
-      color: 'white',
-      fontSize: '15px',
-      fontWeight: 600,
-      cursor: 'pointer',
-    },
-    contenido: {
-      display: 'grid',
-      gridTemplateColumns: '1fr 390px',
-      gap: '18px',
-      alignItems: 'start',
-    },
-    columnaPrincipal: {
-      display: 'flex',
-      flexDirection: 'column',
-      gap: '18px',
-    },
-    columnaLateral: {
-      display: 'flex',
-      flexDirection: 'column',
-      gap: '18px',
-    },
-    card: {
-      backgroundColor: 'white',
-      borderRadius: '12px',
-      padding: '20px',
-      boxShadow: '0px 8px 18px rgba(0, 0, 0, 0.12)',
-    },
-    cardTitulo: {
-      margin: '0 0 18px',
-      color: '#1d2944',
-      fontSize: '22px',
-      fontWeight: 800,
-    },
-    grilla: {
-      display: 'grid',
-      gridTemplateColumns: '1fr 1fr',
-      gap: '16px',
-    },
-    campo: {
-      display: 'flex',
-      flexDirection: 'column',
-      gap: '7px',
-    },
-    label: {
-      color: '#1d2944',
-      fontSize: '14px',
-      fontWeight: 600,
-    },
-    input: {
-      height: '40px',
-      border: '1px solid #d7d7d7',
-      borderRadius: '8px',
-      padding: '0 12px',
-      color: '#1d2944',
-      fontSize: '14px',
-      fontFamily: 'Poppins, sans-serif',
-      backgroundColor: editar ? 'white' : '#f2f2f2',
-    },
-    horarioItem: {
-      display: 'grid',
-      gridTemplateColumns: '120px 1fr 20px 1fr 100px',
-      alignItems: 'center',
-      gap: '10px',
-      padding: '12px',
-      borderRadius: '10px',
-      backgroundColor: '#f4efe7',
-      marginBottom: '12px',
-    },
-    checkbox: {
-      display: 'flex',
-      alignItems: 'center',
-      gap: '8px',
-      color: '#1d2944',
-      fontSize: '14px',
-      fontWeight: 500,
-    },
-    rolItem: {
-      padding: '12px',
-      borderRadius: '10px',
-      backgroundColor: '#f4efe7',
-      borderLeft: '4px solid #2f8c80',
-      marginBottom: '10px',
-    },
-    modulo: {
-      display: 'inline-block',
-      backgroundColor: '#dcefe9',
-      color: '#2f8c80',
-      borderRadius: '8px',
-      padding: '6px 10px',
-      fontSize: '13px',
-      fontWeight: 700,
-      margin: '4px',
-    },
-    botonGuardar: {
-      height: '44px',
-      border: 'none',
-      borderRadius: '8px',
-      backgroundColor: '#2f8c80',
-      color: 'white',
-      fontSize: '15px',
-      fontWeight: 600,
-      cursor: 'pointer',
-    },
-  }
+  const mascotaSeleccionada = consultaSeleccionada
+    ? obtenerMascota(consultaSeleccionada.mascotaId)
+    : null
+
+  const clienteSeleccionado = consultaSeleccionada
+    ? obtenerClienteDeMascota(consultaSeleccionada.mascotaId)
+    : null
 
   return (
-    <section style={estilos.pagina}>
-      <div style={estilos.header}>
+    <section className="consultas-page">
+      <div className="consultas-header">
         <div>
-          <h1 style={estilos.titulo}>Configuración</h1>
-          <p style={estilos.subtitulo}>Opciones generales del sistema</p>
+          <h1>Consultas</h1>
+          <p>Registro de consultas clínicas e historial médico</p>
         </div>
 
-        {!editar ? (
-          <button
-            type="button"
-            style={estilos.botonEditar}
-            onClick={() => setEditar(true)}
-          >
-            Editar Configuración
-          </button>
-        ) : (
-          <button
-            type="button"
-            style={estilos.botonCancelar}
-            onClick={cancelarEdicion}
-          >
-            Cancelar
-          </button>
-        )}
+        <button
+          type="button"
+          className="btn-nueva-consulta"
+          onClick={abrirNuevaConsulta}
+        >
+          <FaPlus />
+          Nueva Consulta
+        </button>
       </div>
 
-      <div style={estilos.contenido}>
-        <div style={estilos.columnaPrincipal}>
-          <div style={estilos.card}>
-            <h2 style={estilos.cardTitulo}>Datos de la veterinaria</h2>
+      <div className="consultas-content">
+        <div className="consultas-main-card">
+          <div className="consultas-toolbar">
+            <div className="consultas-search">
+              <FaMagnifyingGlass />
 
-            <div style={estilos.grilla}>
-              <div style={estilos.campo}>
-                <label style={estilos.label}>Nombre de la veterinaria</label>
-                <input
-                  style={estilos.input}
-                  type="text"
-                  name="nombreVeterinaria"
-                  value={configuracion.nombreVeterinaria}
-                  disabled={!editar}
-                  onChange={cambiarConfiguracion}
-                />
-              </div>
-
-              <div style={estilos.campo}>
-                <label style={estilos.label}>Teléfono</label>
-                <input
-                  style={estilos.input}
-                  type="text"
-                  name="telefono"
-                  value={configuracion.telefono}
-                  disabled={!editar}
-                  onChange={cambiarConfiguracion}
-                />
-              </div>
-
-              <div style={estilos.campo}>
-                <label style={estilos.label}>Email</label>
-                <input
-                  style={estilos.input}
-                  type="email"
-                  name="email"
-                  value={configuracion.email}
-                  disabled={!editar}
-                  onChange={cambiarConfiguracion}
-                />
-              </div>
-
-              <div style={estilos.campo}>
-                <label style={estilos.label}>Dirección</label>
-                <input
-                  style={estilos.input}
-                  type="text"
-                  name="direccion"
-                  value={configuracion.direccion}
-                  disabled={!editar}
-                  onChange={cambiarConfiguracion}
-                />
-              </div>
-
-              <div style={estilos.campo}>
-                <label style={estilos.label}>Ciudad</label>
-                <input
-                  style={estilos.input}
-                  type="text"
-                  name="ciudad"
-                  value={configuracion.ciudad}
-                  disabled={!editar}
-                  onChange={cambiarConfiguracion}
-                />
-              </div>
-
-              <div style={estilos.campo}>
-                <label style={estilos.label}>Moneda</label>
-                <select
-                  style={estilos.input}
-                  name="moneda"
-                  value={configuracion.moneda}
-                  disabled={!editar}
-                  onChange={cambiarConfiguracion}
-                >
-                  <option value="ARS">ARS - Peso argentino</option>
-                  <option value="USD">USD - Dólar</option>
-                </select>
-              </div>
+              <input
+                type="text"
+                placeholder="Buscar por mascota, dueño, fecha, diagnóstico o tratamiento"
+                value={busqueda}
+                onChange={(e) => setBusqueda(e.target.value)}
+              />
             </div>
+
+            <span className="consultas-total">
+              {consultasFiltradas.length}{' '}
+              {consultasFiltradas.length === 1 ? 'consulta' : 'consultas'}
+            </span>
           </div>
 
-          <div style={estilos.card}>
-            <h2 style={estilos.cardTitulo}>Horarios de atención</h2>
+          <div className="consultas-table-wrapper">
+            <table className="consultas-table">
+              <thead>
+                <tr>
+                  <th>Consulta</th>
+                  <th>Mascota</th>
+                  <th>Dueño</th>
+                  <th>Diagnóstico</th>
+                  <th>Tratamiento</th>
+                  <th>Acciones</th>
+                </tr>
+              </thead>
 
-            {horarios.map((horario) => (
-              <div style={estilos.horarioItem} key={horario.id}>
-                <strong>{horario.dia}</strong>
+              <tbody>
+                {consultasFiltradas.map((consulta) => {
+                  const mascota = obtenerMascota(consulta.mascotaId)
+                  const cliente = obtenerClienteDeMascota(consulta.mascotaId)
 
-                <input
-                  style={estilos.input}
-                  type="time"
-                  value={horario.apertura}
-                  disabled={!editar || !horario.activo}
-                  onChange={(e) =>
-                    cambiarHorario(horario.id, 'apertura', e.target.value)
-                  }
-                />
+                  return (
+                    <tr key={consulta.id}>
+                      <td>
+                        <div className="consulta-fecha">
+                          <div className="consulta-icono">
+                            <FaStethoscope />
+                          </div>
 
-                <span>a</span>
+                          <div>
+                            <strong>{formatearFecha(consulta.fecha)}</strong>
+                            <small>
+                              {consulta.peso} kg · {consulta.temperatura} °C
+                            </small>
+                          </div>
+                        </div>
+                      </td>
 
-                <input
-                  style={estilos.input}
-                  type="time"
-                  value={horario.cierre}
-                  disabled={!editar || !horario.activo}
-                  onChange={(e) =>
-                    cambiarHorario(horario.id, 'cierre', e.target.value)
-                  }
-                />
+                      <td>{mascota?.nombre || 'Sin mascota'}</td>
 
-                <label style={estilos.checkbox}>
-                  <input
-                    type="checkbox"
-                    checked={horario.activo}
-                    disabled={!editar}
-                    onChange={(e) =>
-                      cambiarHorario(horario.id, 'activo', e.target.checked)
-                    }
-                  />
-                  Abierto
-                </label>
-              </div>
-            ))}
+                      <td>
+                        {cliente
+                          ? `${cliente.nombre} ${cliente.apellido}`
+                          : 'Sin dueño'}
+                      </td>
+
+                      <td className="texto-recortado">
+                        {consulta.diagnostico}
+                      </td>
+
+                      <td className="texto-recortado">
+                        {consulta.tratamiento}
+                      </td>
+
+                      <td>
+                        <div className="acciones">
+                          <button
+                            type="button"
+                            className="btn-accion ver"
+                            onClick={() => abrirVerConsulta(consulta)}
+                            title="Ver consulta"
+                            aria-label="Ver consulta"
+                          >
+                            <FaEye />
+                          </button>
+
+                          <button
+                            type="button"
+                            className="btn-accion editar"
+                            onClick={() => abrirEditarConsulta(consulta)}
+                            title="Editar consulta"
+                            aria-label="Editar consulta"
+                          >
+                            <FaPen />
+                          </button>
+
+                          <button
+                            type="button"
+                            className="btn-accion eliminar"
+                            onClick={() => eliminarConsulta(consulta.id)}
+                            title="Eliminar consulta"
+                            aria-label="Eliminar consulta"
+                          >
+                            <FaTrash />
+                          </button>
+                        </div>
+                      </td>
+                    </tr>
+                  )
+                })}
+
+                {consultasFiltradas.length === 0 && (
+                  <tr>
+                    <td colSpan="6" className="sin-resultados">
+                      No se encontraron consultas.
+                    </td>
+                  </tr>
+                )}
+              </tbody>
+            </table>
           </div>
         </div>
 
-        <aside style={estilos.columnaLateral}>
-          <div style={estilos.card}>
-            <h2 style={estilos.cardTitulo}>Sistema</h2>
-
-            <div style={estilos.campo}>
-              <label style={estilos.label}>Idioma</label>
-              <select
-                style={estilos.input}
-                name="idioma"
-                value={configuracion.idioma}
-                disabled={!editar}
-                onChange={cambiarConfiguracion}
-              >
-                <option value="Español">Español</option>
-                <option value="Inglés">Inglés</option>
-              </select>
-            </div>
-
-            <br />
-
-            <div style={estilos.campo}>
-              <label style={estilos.label}>Tema</label>
-              <select
-                style={estilos.input}
-                name="tema"
-                value={configuracion.tema}
-                disabled={!editar}
-                onChange={cambiarConfiguracion}
-              >
-                <option value="Claro">Claro</option>
-                <option value="Oscuro">Oscuro</option>
-              </select>
-            </div>
-
-            <br />
-
-            <div style={estilos.campo}>
-              <label style={estilos.label}>Backup</label>
-              <select
-                style={estilos.input}
-                name="backup"
-                value={configuracion.backup}
-                disabled={!editar}
-                onChange={cambiarConfiguracion}
-              >
-                <option value="Manual">Manual</option>
-                <option value="Automático">Automático</option>
-              </select>
-            </div>
-
-            <br />
-
-            <label style={estilos.checkbox}>
-              <input
-                type="checkbox"
-                name="estadoSistema"
-                checked={configuracion.estadoSistema}
-                disabled={!editar}
-                onChange={cambiarConfiguracion}
-              />
-              Sistema activo
-            </label>
-          </div>
-
-          <div style={estilos.card}>
-            <h2 style={estilos.cardTitulo}>Roles del sistema</h2>
-
-            {rolesSistema.map((rol) => (
-              <div style={estilos.rolItem} key={rol.rol}>
-                <strong>{rol.rol}</strong>
-                <p style={{ margin: '4px 0 0', color: '#7c849d' }}>
-                  {rol.descripcion}
-                </p>
-              </div>
-            ))}
-          </div>
-
-          <div style={estilos.card}>
-            <h2 style={estilos.cardTitulo}>Módulos activos</h2>
-
-            {modulosSistema.map((modulo) => (
-              <span style={estilos.modulo} key={modulo}>
-                {modulo}
-              </span>
-            ))}
-          </div>
-
-          {editar && (
+        {(mostrarFormulario || consultaSeleccionada) && (
+          <aside className="consultas-side-card">
             <button
               type="button"
-              style={estilos.botonGuardar}
-              onClick={guardarConfiguracion}
+              className="btn-cerrar"
+              onClick={cerrarPanel}
+              aria-label="Cerrar panel"
             >
-              Guardar Configuración
+              <FaXmark />
             </button>
-          )}
-        </aside>
+
+            {mostrarFormulario ? (
+              <>
+                <h2>{modoEdicion ? 'Editar Consulta' : 'Nueva Consulta'}</h2>
+
+                <p>
+                  {modoEdicion
+                    ? 'Modificá los datos de la consulta seleccionada'
+                    : 'Cargá una nueva consulta clínica'}
+                </p>
+
+                <form className="consulta-form" onSubmit={guardarConsulta}>
+                  {errorFormulario && (
+                    <div className="consulta-form-error" role="alert">
+                      <FaTriangleExclamation />
+                      <span>{errorFormulario}</span>
+                    </div>
+                  )}
+
+                  <label htmlFor="mascotaId">Mascota</label>
+                  <select
+                    id="mascotaId"
+                    name="mascotaId"
+                    value={formulario.mascotaId}
+                    onChange={manejarCambio}
+                  >
+                    <option value="">Seleccionar mascota</option>
+
+                    {mascotas.map((mascota) => {
+                      const cliente = obtenerClienteDeMascota(mascota.id)
+
+                      return (
+                        <option key={mascota.id} value={mascota.id}>
+                          {mascota.nombre} - {cliente?.nombre}{' '}
+                          {cliente?.apellido}
+                        </option>
+                      )
+                    })}
+                  </select>
+
+                  <label htmlFor="fecha">Fecha</label>
+                  <input
+                    id="fecha"
+                    type="date"
+                    name="fecha"
+                    value={formulario.fecha}
+                    onChange={manejarCambio}
+                  />
+
+                  <label htmlFor="peso">Peso (kg)</label>
+                  <input
+                    id="peso"
+                    type="number"
+                    name="peso"
+                    value={formulario.peso}
+                    onChange={manejarCambio}
+                    min="0.1"
+                    step="0.1"
+                    placeholder="Ejemplo: 8.5"
+                  />
+
+                  <label htmlFor="temperatura">Temperatura (°C)</label>
+                  <input
+                    id="temperatura"
+                    type="number"
+                    name="temperatura"
+                    value={formulario.temperatura}
+                    onChange={manejarCambio}
+                    min="30"
+                    max="45"
+                    step="0.1"
+                    placeholder="Ejemplo: 38.5"
+                  />
+
+                  <label htmlFor="diagnostico">Diagnóstico</label>
+                  <textarea
+                    id="diagnostico"
+                    name="diagnostico"
+                    value={formulario.diagnostico}
+                    onChange={manejarCambio}
+                    placeholder="Describí el diagnóstico"
+                  />
+
+                  <label htmlFor="tratamiento">Tratamiento</label>
+                  <textarea
+                    id="tratamiento"
+                    name="tratamiento"
+                    value={formulario.tratamiento}
+                    onChange={manejarCambio}
+                    placeholder="Indicá el tratamiento"
+                  />
+
+                  <label htmlFor="observaciones">Observaciones</label>
+                  <textarea
+                    id="observaciones"
+                    name="observaciones"
+                    value={formulario.observaciones}
+                    onChange={manejarCambio}
+                    placeholder="Información adicional"
+                  />
+
+                  <button type="submit" className="btn-guardar">
+                    <FaFloppyDisk />
+                    {modoEdicion ? 'Guardar Cambios' : 'Guardar Consulta'}
+                  </button>
+                </form>
+              </>
+            ) : (
+              <>
+                <h2>Detalle de Consulta</h2>
+                <p>Información clínica registrada</p>
+
+                <div className="consulta-detalle">
+                  <div>
+                    <span>Fecha</span>
+                    <strong>{formatearFecha(consultaSeleccionada.fecha)}</strong>
+                  </div>
+
+                  <div>
+                    <span>Mascota</span>
+                    <strong>{mascotaSeleccionada?.nombre || 'Sin mascota'}</strong>
+                  </div>
+
+                  <div>
+                    <span>Dueño</span>
+                    <strong>
+                      {clienteSeleccionado
+                        ? `${clienteSeleccionado.nombre} ${clienteSeleccionado.apellido}`
+                        : 'Sin dueño'}
+                    </strong>
+                  </div>
+
+                  <div>
+                    <span>Peso</span>
+                    <strong>{consultaSeleccionada.peso} kg</strong>
+                  </div>
+
+                  <div>
+                    <span>Temperatura</span>
+                    <strong>{consultaSeleccionada.temperatura} °C</strong>
+                  </div>
+
+                  <div>
+                    <span>Diagnóstico</span>
+                    <strong>{consultaSeleccionada.diagnostico}</strong>
+                  </div>
+
+                  <div>
+                    <span>Tratamiento</span>
+                    <strong>{consultaSeleccionada.tratamiento}</strong>
+                  </div>
+
+                  <div>
+                    <span>Observaciones</span>
+                    <strong>
+                      {consultaSeleccionada.observaciones || 'Sin observaciones'}
+                    </strong>
+                  </div>
+                </div>
+
+                <div className="historial-clinico">
+                  <h3>Historial clínico</h3>
+
+                  {historialMascota.map((consulta) => (
+                    <div
+                      className={`historial-item ${
+                        consulta.id === consultaSeleccionada.id
+                          ? 'historial-item-activo'
+                          : ''
+                      }`}
+                      key={consulta.id}
+                    >
+                      <strong>{formatearFecha(consulta.fecha)}</strong>
+                      <span>{consulta.diagnostico}</span>
+                    </div>
+                  ))}
+                </div>
+
+                <button
+                  type="button"
+                  className="btn-editar-detalle"
+                  onClick={() => abrirEditarConsulta(consultaSeleccionada)}
+                >
+                  <FaPen />
+                  Editar Consulta
+                </button>
+              </>
+            )}
+          </aside>
+        )}
       </div>
     </section>
   )
 }
 
-export default Configuracion
+export default Consultas
