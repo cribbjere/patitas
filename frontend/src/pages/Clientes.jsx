@@ -1,4 +1,4 @@
-import { useMemo, useState } from 'react'
+import { useEffect, useMemo, useState } from 'react'
 import {
   FaMagnifyingGlass,
   FaPlus,
@@ -9,7 +9,13 @@ import {
   FaXmark,
 } from 'react-icons/fa6'
 
-import { clientes as clientesIniciales } from '../data/mockData'
+import {
+  obtenerClientes,
+  crearCliente,
+  actualizarCliente,
+  eliminarCliente as eliminarClienteApi,
+} from '../services/clientesService'
+
 import { soloLetras, soloNumeros } from '../utils/validaciones'
 import './Clientes.css'
 
@@ -23,13 +29,43 @@ const clienteVacio = {
 }
 
 function Clientes() {
-  const [clientes, setClientes] = useState(clientesIniciales)
+  const [clientes, setClientes] = useState([])
   const [busqueda, setBusqueda] = useState('')
   const [mostrarFormulario, setMostrarFormulario] = useState(false)
   const [clienteSeleccionado, setClienteSeleccionado] = useState(null)
   const [modoEdicion, setModoEdicion] = useState(false)
   const [formulario, setFormulario] = useState(clienteVacio)
   const [errorFormulario, setErrorFormulario] = useState('')
+  const [cargando, setCargando] = useState(true)
+  const [guardando, setGuardando] = useState(false)
+  const [errorCarga, setErrorCarga] = useState('')
+
+  useEffect(() => {
+    const cargarClientes = async () => {
+      try {
+        setCargando(true)
+        setErrorCarga('')
+
+        const datos = await obtenerClientes()
+
+        const clientesAdaptados = datos.map((cliente) => ({
+          ...cliente,
+          estado: cliente.estado === 'activo',
+        }))
+
+        setClientes(clientesAdaptados)
+      } catch (error) {
+        console.error('Error al cargar clientes:', error)
+        setErrorCarga(
+          'No se pudieron cargar los clientes. Verificá que el backend esté funcionando.'
+        )
+      } finally {
+        setCargando(false)
+      }
+    }
+
+    cargarClientes()
+  }, [])
 
   const clientesFiltrados = useMemo(() => {
     const textoBusqueda = busqueda.trim().toLowerCase()
@@ -113,9 +149,18 @@ function Clientes() {
     const apellido = formulario.apellido.trim()
     const telefono = formulario.telefono.trim()
     const email = formulario.email.trim()
+    const direccion = formulario.direccion.trim()
 
     if (!nombre || !apellido || !telefono) {
       return 'Completá el nombre, el apellido y el teléfono.'
+    }
+
+    if (!email) {
+      return 'El email es obligatorio.'
+    }
+
+    if (!direccion) {
+      return 'La dirección es obligatoria.'
     }
 
     if (nombre.length < 2 || apellido.length < 2) {
@@ -126,14 +171,52 @@ function Clientes() {
       return 'Ingresá un número de teléfono válido.'
     }
 
-    if (email && !/^[^\s@]+@[^\s@]+\.[^\s@]+$/.test(email)) {
+    if (!/^[^\s@]+@[^\s@]+\.[^\s@]+$/.test(email)) {
       return 'Ingresá un correo electrónico válido.'
     }
 
     return ''
   }
 
-  const guardarCliente = (evento) => {
+  const obtenerMensajeError = (error) => {
+    const datos = error.response?.data
+
+    if (!datos) {
+      return 'No se pudo conectar con el servidor.'
+    }
+
+    if (datos.email) {
+      return `Email: ${datos.email.join(' ')}`
+    }
+
+    if (datos.telefono) {
+      return `Teléfono: ${datos.telefono.join(' ')}`
+    }
+
+    if (datos.nombre) {
+      return `Nombre: ${datos.nombre.join(' ')}`
+    }
+
+    if (datos.apellido) {
+      return `Apellido: ${datos.apellido.join(' ')}`
+    }
+
+    if (datos.direccion) {
+      return `Dirección: ${datos.direccion.join(' ')}`
+    }
+
+    if (datos.estado) {
+      return `Estado: ${datos.estado.join(' ')}`
+    }
+
+    if (datos.detail) {
+      return datos.detail
+    }
+
+    return 'No se pudo guardar el cliente.'
+  }
+
+  const guardarCliente = async (evento) => {
     evento.preventDefault()
 
     const error = validarFormulario()
@@ -144,41 +227,60 @@ function Clientes() {
     }
 
     const datosCliente = {
-      ...formulario,
       nombre: formulario.nombre.trim(),
       apellido: formulario.apellido.trim(),
       telefono: formulario.telefono.trim(),
       email: formulario.email.trim(),
       direccion: formulario.direccion.trim(),
+      estado: formulario.estado ? 'activo' : 'inactivo',
     }
 
-    if (modoEdicion && clienteSeleccionado) {
-      setClientes((clientesAnteriores) =>
-        clientesAnteriores.map((cliente) =>
-          cliente.id === clienteSeleccionado.id
-            ? {
-                ...datosCliente,
-                id: clienteSeleccionado.id,
-              }
-            : cliente
+    try {
+      setGuardando(true)
+      setErrorFormulario('')
+
+      if (modoEdicion && clienteSeleccionado) {
+        const clienteActualizado = await actualizarCliente(
+          clienteSeleccionado.id,
+          datosCliente
         )
-      )
-    } else {
-      const nuevoCliente = {
-        ...datosCliente,
-        id: Date.now(),
+
+        const clienteAdaptado = {
+          ...clienteActualizado,
+          estado: clienteActualizado.estado === 'activo',
+        }
+
+        setClientes((clientesAnteriores) =>
+          clientesAnteriores.map((cliente) =>
+            cliente.id === clienteSeleccionado.id
+              ? clienteAdaptado
+              : cliente
+          )
+        )
+      } else {
+        const nuevoCliente = await crearCliente(datosCliente)
+
+        const clienteAdaptado = {
+          ...nuevoCliente,
+          estado: nuevoCliente.estado === 'activo',
+        }
+
+        setClientes((clientesAnteriores) => [
+          ...clientesAnteriores,
+          clienteAdaptado,
+        ])
       }
 
-      setClientes((clientesAnteriores) => [
-        ...clientesAnteriores,
-        nuevoCliente,
-      ])
+      cerrarPanel()
+    } catch (errorGuardar) {
+      console.error('Error al guardar cliente:', errorGuardar)
+      setErrorFormulario(obtenerMensajeError(errorGuardar))
+    } finally {
+      setGuardando(false)
     }
-
-    cerrarPanel()
   }
 
-  const eliminarCliente = (cliente) => {
+  const eliminarCliente = async (cliente) => {
     const confirmar = window.confirm(
       `¿Seguro que querés eliminar a ${cliente.nombre} ${cliente.apellido}?`
     )
@@ -187,12 +289,22 @@ function Clientes() {
       return
     }
 
-    setClientes((clientesAnteriores) =>
-      clientesAnteriores.filter((item) => item.id !== cliente.id)
-    )
+    try {
+      await eliminarClienteApi(cliente.id)
 
-    if (clienteSeleccionado?.id === cliente.id) {
-      cerrarPanel()
+      setClientes((clientesAnteriores) =>
+        clientesAnteriores.filter((item) => item.id !== cliente.id)
+      )
+
+      if (clienteSeleccionado?.id === cliente.id) {
+        cerrarPanel()
+      }
+    } catch (error) {
+      console.error('Error al eliminar cliente:', error)
+
+      window.alert(
+        'No se pudo eliminar el cliente. Puede estar relacionado con mascotas, turnos u otros registros.'
+      )
     }
   }
 
@@ -213,6 +325,12 @@ function Clientes() {
           Nuevo Cliente
         </button>
       </header>
+
+      {errorCarga && (
+        <div className="cliente-form-error" role="alert">
+          {errorCarga}
+        </div>
+      )}
 
       <div
         className={`clientes-content ${
@@ -254,69 +372,80 @@ function Clientes() {
               </thead>
 
               <tbody>
-                {clientesFiltrados.map((cliente) => (
-                  <tr key={cliente.id}>
-                    <td>
-                      <strong>
-                        {cliente.nombre} {cliente.apellido}
-                      </strong>
-
-                      <small>
-                        {cliente.direccion || 'Dirección no registrada'}
-                      </small>
-                    </td>
-
-                    <td>{cliente.telefono}</td>
-
-                    <td>{cliente.email || 'No registrado'}</td>
-
-                    <td>
-                      <span
-                        className={
-                          cliente.estado ? 'estado activo' : 'estado inactivo'
-                        }
-                      >
-                        {cliente.estado ? 'Activo' : 'Inactivo'}
-                      </span>
-                    </td>
-
-                    <td>
-                      <div className="acciones">
-                        <button
-                          type="button"
-                          className="btn-accion ver"
-                          onClick={() => abrirVerCliente(cliente)}
-                          title="Ver cliente"
-                          aria-label={`Ver a ${cliente.nombre} ${cliente.apellido}`}
-                        >
-                          <FaEye />
-                        </button>
-
-                        <button
-                          type="button"
-                          className="btn-accion editar"
-                          onClick={() => abrirEditarCliente(cliente)}
-                          title="Editar cliente"
-                          aria-label={`Editar a ${cliente.nombre} ${cliente.apellido}`}
-                        >
-                          <FaPen />
-                        </button>
-
-                        <button
-                          type="button"
-                          className="btn-accion eliminar"
-                          onClick={() => eliminarCliente(cliente)}
-                          title="Eliminar cliente"
-                          aria-label={`Eliminar a ${cliente.nombre} ${cliente.apellido}`}
-                        >
-                          <FaTrash />
-                        </button>
-                      </div>
+                {cargando && (
+                  <tr>
+                    <td colSpan="5" className="sin-resultados">
+                      Cargando clientes...
                     </td>
                   </tr>
-                ))}
+                )}
 
-                {clientesFiltrados.length === 0 && (
+                {!cargando &&
+                  clientesFiltrados.map((cliente) => (
+                    <tr key={cliente.id}>
+                      <td>
+                        <strong>
+                          {cliente.nombre} {cliente.apellido}
+                        </strong>
+
+                        <small>
+                          {cliente.direccion || 'Dirección no registrada'}
+                        </small>
+                      </td>
+
+                      <td>{cliente.telefono}</td>
+
+                      <td>{cliente.email || 'No registrado'}</td>
+
+                      <td>
+                        <span
+                          className={
+                            cliente.estado
+                              ? 'estado activo'
+                              : 'estado inactivo'
+                          }
+                        >
+                          {cliente.estado ? 'Activo' : 'Inactivo'}
+                        </span>
+                      </td>
+
+                      <td>
+                        <div className="acciones">
+                          <button
+                            type="button"
+                            className="btn-accion ver"
+                            onClick={() => abrirVerCliente(cliente)}
+                            title="Ver cliente"
+                            aria-label={`Ver a ${cliente.nombre} ${cliente.apellido}`}
+                          >
+                            <FaEye />
+                          </button>
+
+                          <button
+                            type="button"
+                            className="btn-accion editar"
+                            onClick={() => abrirEditarCliente(cliente)}
+                            title="Editar cliente"
+                            aria-label={`Editar a ${cliente.nombre} ${cliente.apellido}`}
+                          >
+                            <FaPen />
+                          </button>
+
+                          <button
+                            type="button"
+                            className="btn-accion eliminar"
+                            onClick={() => eliminarCliente(cliente)}
+                            title="Eliminar cliente"
+                            aria-label={`Eliminar a ${cliente.nombre} ${cliente.apellido}`}
+                          >
+                            <FaTrash />
+                          </button>
+                        </div>
+                      </td>
+                    </tr>
+                  ))}
+
+                {!cargando && clientesFiltrados.length === 0 && (
                   <tr>
                     <td colSpan="5" className="sin-resultados">
                       {busqueda
@@ -370,6 +499,7 @@ function Clientes() {
                     maxLength={50}
                     autoComplete="given-name"
                     placeholder="Ejemplo: María"
+                    disabled={guardando}
                   />
 
                   <label htmlFor="cliente-apellido">
@@ -385,6 +515,7 @@ function Clientes() {
                     maxLength={50}
                     autoComplete="family-name"
                     placeholder="Ejemplo: López"
+                    disabled={guardando}
                   />
 
                   <label htmlFor="cliente-telefono">
@@ -397,13 +528,16 @@ function Clientes() {
                     name="telefono"
                     value={formulario.telefono}
                     onChange={manejarCambio}
-                    maxLength={15}
+                    maxLength={20}
                     inputMode="numeric"
                     autoComplete="tel"
                     placeholder="Ejemplo: 3415551234"
+                    disabled={guardando}
                   />
 
-                  <label htmlFor="cliente-email">Email</label>
+                  <label htmlFor="cliente-email">
+                    Email <span>*</span>
+                  </label>
 
                   <input
                     id="cliente-email"
@@ -411,12 +545,15 @@ function Clientes() {
                     name="email"
                     value={formulario.email}
                     onChange={manejarCambio}
-                    maxLength={100}
+                    maxLength={254}
                     autoComplete="email"
                     placeholder="Ejemplo: cliente@gmail.com"
+                    disabled={guardando}
                   />
 
-                  <label htmlFor="cliente-direccion">Dirección</label>
+                  <label htmlFor="cliente-direccion">
+                    Dirección <span>*</span>
+                  </label>
 
                   <input
                     id="cliente-direccion"
@@ -424,9 +561,10 @@ function Clientes() {
                     name="direccion"
                     value={formulario.direccion}
                     onChange={manejarCambio}
-                    maxLength={120}
+                    maxLength={150}
                     autoComplete="street-address"
                     placeholder="Ejemplo: San Martín 1240"
+                    disabled={guardando}
                   />
 
                   <label className="checkbox-cliente">
@@ -435,6 +573,7 @@ function Clientes() {
                       name="estado"
                       checked={formulario.estado}
                       onChange={manejarCambio}
+                      disabled={guardando}
                     />
 
                     <span>Cliente activo</span>
@@ -446,9 +585,18 @@ function Clientes() {
                     </div>
                   )}
 
-                  <button type="submit" className="btn-guardar">
+                  <button
+                    type="submit"
+                    className="btn-guardar"
+                    disabled={guardando}
+                  >
                     <FaFloppyDisk />
-                    {modoEdicion ? 'Guardar Cambios' : 'Guardar Cliente'}
+
+                    {guardando
+                      ? 'Guardando...'
+                      : modoEdicion
+                        ? 'Guardar Cambios'
+                        : 'Guardar Cliente'}
                   </button>
                 </form>
               </>
