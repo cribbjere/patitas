@@ -1,4 +1,4 @@
-import { useMemo, useState } from 'react'
+import { useEffect, useMemo, useState } from 'react'
 import {
   FaMagnifyingGlass,
   FaPlus,
@@ -10,10 +10,15 @@ import {
   FaPaw,
 } from 'react-icons/fa6'
 
+import { obtenerClientes } from '../services/clientesService'
+
 import {
-  clientes as clientesIniciales,
-  mascotas as mascotasIniciales,
-} from '../data/mockData'
+  obtenerEspecies,
+  obtenerMascotas,
+  crearMascota,
+  actualizarMascota,
+  eliminarMascota as eliminarMascotaApi,
+} from '../services/mascotasService'
 
 import {
   soloLetras,
@@ -24,29 +29,102 @@ import './Mascotas.css'
 
 const mascotaVacia = {
   nombre: '',
-  especie: '',
+  especieId: '',
   raza: '',
   fechaNacimiento: '',
   sexo: '',
   peso: '',
+  estado: 'activo',
+  alergias: '',
+  grupoSanguineo: '',
   observaciones: '',
   clienteId: '',
 }
 
 function Mascotas() {
-  const [clientes] = useState(clientesIniciales)
-  const [mascotas, setMascotas] = useState(mascotasIniciales)
+  const [clientes, setClientes] = useState([])
+  const [especies, setEspecies] = useState([])
+  const [mascotas, setMascotas] = useState([])
+
   const [busqueda, setBusqueda] = useState('')
   const [mostrarFormulario, setMostrarFormulario] = useState(false)
   const [mascotaSeleccionada, setMascotaSeleccionada] = useState(null)
   const [modoEdicion, setModoEdicion] = useState(false)
-  const [formulario, setFormulario] = useState({ ...mascotaVacia })
+
+  const [formulario, setFormulario] = useState({
+    ...mascotaVacia,
+  })
+
   const [errorFormulario, setErrorFormulario] = useState('')
+  const [errorCarga, setErrorCarga] = useState('')
+  const [cargando, setCargando] = useState(true)
+  const [guardando, setGuardando] = useState(false)
 
   const fechaActual = new Date().toISOString().split('T')[0]
 
+  useEffect(() => {
+    const cargarDatos = async () => {
+      try {
+        setCargando(true)
+        setErrorCarga('')
+
+        const [
+          clientesRecibidos,
+          especiesRecibidas,
+          mascotasRecibidas,
+        ] = await Promise.all([
+          obtenerClientes(),
+          obtenerEspecies(),
+          obtenerMascotas(),
+        ])
+
+        setClientes(clientesRecibidos)
+        setEspecies(especiesRecibidas)
+
+        const mascotasAdaptadas = mascotasRecibidas.map(
+          adaptarMascotaBackend
+        )
+
+        setMascotas(mascotasAdaptadas)
+      } catch (error) {
+        console.error('Error al cargar mascotas:', error)
+
+        setErrorCarga(
+          'No se pudieron cargar las mascotas. Verificá que el backend esté funcionando.'
+        )
+      } finally {
+        setCargando(false)
+      }
+    }
+
+    cargarDatos()
+  }, [])
+
+  const adaptarMascotaBackend = (mascota) => ({
+    id: mascota.id,
+    nombre: mascota.nombre,
+    especieId: mascota.especie,
+    raza: mascota.raza || '',
+    fechaNacimiento: mascota.fecha_nacimiento || '',
+    sexo: mascota.sexo || '',
+    peso: mascota.peso ?? '',
+    estado: mascota.estado || 'activo',
+    alergias: mascota.alergias || '',
+    grupoSanguineo: mascota.grupo_sanguineo || '',
+    observaciones: mascota.observaciones_generales || '',
+    clienteId: mascota.cliente,
+  })
+
   const obtenerCliente = (clienteId) => {
-    return clientes.find((cliente) => cliente.id === Number(clienteId))
+    return clientes.find(
+      (cliente) => cliente.id === Number(clienteId)
+    )
+  }
+
+  const obtenerEspecie = (especieId) => {
+    return especies.find(
+      (especie) => especie.id === Number(especieId)
+    )
   }
 
   const formatearFecha = (fecha) => {
@@ -107,10 +185,11 @@ function Mascotas() {
 
     return mascotas.filter((mascota) => {
       const cliente = obtenerCliente(mascota.clienteId)
+      const especie = obtenerEspecie(mascota.especieId)
 
       const textoMascota = [
         mascota.nombre,
-        mascota.especie,
+        especie?.nombre,
         mascota.raza,
         mascota.sexo,
         cliente?.nombre,
@@ -122,7 +201,7 @@ function Mascotas() {
 
       return textoMascota.includes(textoBusqueda)
     })
-  }, [mascotas, busqueda, clientes])
+  }, [mascotas, busqueda, clientes, especies])
 
   const abrirNuevaMascota = () => {
     setFormulario({ ...mascotaVacia })
@@ -143,6 +222,7 @@ function Mascotas() {
     setFormulario({
       ...mascota,
       clienteId: mascota.clienteId ?? '',
+      especieId: mascota.especieId ?? '',
       peso: mascota.peso ?? '',
     })
 
@@ -173,7 +253,7 @@ function Mascotas() {
       nuevoValor = soloNumerosDecimales(value)
     }
 
-    if (name === 'clienteId') {
+    if (name === 'clienteId' || name === 'especieId') {
       nuevoValor = value ? Number(value) : ''
     }
 
@@ -204,12 +284,20 @@ function Mascotas() {
       return 'El nombre debe tener al menos 2 letras.'
     }
 
-    if (!formulario.especie) {
+    if (!formulario.especieId) {
       return 'Seleccioná la especie de la mascota.'
     }
 
-    if (raza && raza.length < 2) {
+    if (!raza) {
+      return 'Ingresá la raza de la mascota.'
+    }
+
+    if (raza.length < 2) {
       return 'La raza debe tener al menos 2 letras.'
+    }
+
+    if (!formulario.sexo) {
+      return 'Seleccioná el sexo de la mascota.'
     }
 
     if (
@@ -219,14 +307,55 @@ function Mascotas() {
       return 'La fecha de nacimiento no puede ser posterior a la fecha actual.'
     }
 
-    if (formulario.peso !== '' && (!peso || peso <= 0)) {
+    if (
+      formulario.peso !== '' &&
+      (!peso || peso <= 0)
+    ) {
       return 'Ingresá un peso mayor a cero.'
     }
 
     return ''
   }
 
-  const guardarMascota = (evento) => {
+  const obtenerMensajeError = (error) => {
+    const datos = error.response?.data
+
+    if (!datos) {
+      return 'No se pudo conectar con el servidor.'
+    }
+
+    const campos = {
+      nombre: 'Nombre',
+      raza: 'Raza',
+      sexo: 'Sexo',
+      peso: 'Peso',
+      estado: 'Estado',
+      cliente: 'Dueño',
+      especie: 'Especie',
+      fecha_nacimiento: 'Fecha de nacimiento',
+      alergias: 'Alergias',
+      grupo_sanguineo: 'Grupo sanguíneo',
+      observaciones_generales: 'Observaciones',
+    }
+
+    for (const [campo, etiqueta] of Object.entries(campos)) {
+      if (datos[campo]) {
+        const mensaje = Array.isArray(datos[campo])
+          ? datos[campo].join(' ')
+          : datos[campo]
+
+        return `${etiqueta}: ${mensaje}`
+      }
+    }
+
+    if (datos.detail) {
+      return datos.detail
+    }
+
+    return 'No se pudo guardar la mascota.'
+  }
+
+  const guardarMascota = async (evento) => {
     evento.preventDefault()
 
     const error = validarFormulario()
@@ -237,43 +366,76 @@ function Mascotas() {
     }
 
     const datosMascota = {
-      ...formulario,
       nombre: formulario.nombre.trim(),
+      fecha_nacimiento:
+        formulario.fechaNacimiento || null,
       raza: formulario.raza.trim(),
       peso:
         formulario.peso === ''
-          ? ''
-          : Number(formulario.peso),
-      observaciones: formulario.observaciones.trim(),
+          ? null
+          : formulario.peso,
+      sexo: formulario.sexo,
+      estado: formulario.estado,
+      alergias:
+        formulario.alergias.trim() || null,
+      grupo_sanguineo:
+        formulario.grupoSanguineo.trim() || null,
+      observaciones_generales:
+        formulario.observaciones.trim() || null,
+      cliente: Number(formulario.clienteId),
+      especie: Number(formulario.especieId),
     }
 
-    if (modoEdicion && mascotaSeleccionada) {
-      setMascotas((mascotasAnteriores) =>
-        mascotasAnteriores.map((mascota) =>
-          mascota.id === mascotaSeleccionada.id
-            ? {
-                ...datosMascota,
-                id: mascotaSeleccionada.id,
-              }
-            : mascota
+    try {
+      setGuardando(true)
+      setErrorFormulario('')
+
+      if (modoEdicion && mascotaSeleccionada) {
+        const mascotaActualizada =
+          await actualizarMascota(
+            mascotaSeleccionada.id,
+            datosMascota
+          )
+
+        const mascotaAdaptada =
+          adaptarMascotaBackend(mascotaActualizada)
+
+        setMascotas((mascotasAnteriores) =>
+          mascotasAnteriores.map((mascota) =>
+            mascota.id === mascotaSeleccionada.id
+              ? mascotaAdaptada
+              : mascota
+          )
         )
-      )
-    } else {
-      const nuevaMascota = {
-        ...datosMascota,
-        id: Date.now(),
+      } else {
+        const nuevaMascota =
+          await crearMascota(datosMascota)
+
+        const mascotaAdaptada =
+          adaptarMascotaBackend(nuevaMascota)
+
+        setMascotas((mascotasAnteriores) => [
+          ...mascotasAnteriores,
+          mascotaAdaptada,
+        ])
       }
 
-      setMascotas((mascotasAnteriores) => [
-        ...mascotasAnteriores,
-        nuevaMascota,
-      ])
-    }
+      cerrarPanel()
+    } catch (errorGuardar) {
+      console.error(
+        'Error al guardar mascota:',
+        errorGuardar
+      )
 
-    cerrarPanel()
+      setErrorFormulario(
+        obtenerMensajeError(errorGuardar)
+      )
+    } finally {
+      setGuardando(false)
+    }
   }
 
-  const eliminarMascota = (mascota) => {
+  const eliminarMascota = async (mascota) => {
     const confirmar = window.confirm(
       `¿Seguro que querés eliminar a ${mascota.nombre}?`
     )
@@ -282,12 +444,24 @@ function Mascotas() {
       return
     }
 
-    setMascotas((mascotasAnteriores) =>
-      mascotasAnteriores.filter((item) => item.id !== mascota.id)
-    )
+    try {
+      await eliminarMascotaApi(mascota.id)
 
-    if (mascotaSeleccionada?.id === mascota.id) {
-      cerrarPanel()
+      setMascotas((mascotasAnteriores) =>
+        mascotasAnteriores.filter(
+          (item) => item.id !== mascota.id
+        )
+      )
+
+      if (mascotaSeleccionada?.id === mascota.id) {
+        cerrarPanel()
+      }
+    } catch (error) {
+      console.error('Error al eliminar mascota:', error)
+
+      window.alert(
+        'No se pudo eliminar la mascota. Puede tener turnos, consultas, vacunas u otros registros relacionados.'
+      )
     }
   }
 
@@ -309,6 +483,12 @@ function Mascotas() {
         </button>
       </header>
 
+      {errorCarga && (
+        <div className="mascota-form-error" role="alert">
+          {errorCarga}
+        </div>
+      )}
+
       <div
         className={`mascotas-content ${
           mostrarFormulario || mascotaSeleccionada
@@ -325,14 +505,18 @@ function Mascotas() {
                 type="search"
                 placeholder="Buscar por nombre, especie, raza o dueño"
                 value={busqueda}
-                onChange={(evento) => setBusqueda(evento.target.value)}
+                onChange={(evento) =>
+                  setBusqueda(evento.target.value)
+                }
                 aria-label="Buscar mascotas"
               />
             </div>
 
             <span className="mascotas-total">
               {mascotasFiltradas.length}{' '}
-              {mascotasFiltradas.length === 1 ? 'mascota' : 'mascotas'}
+              {mascotasFiltradas.length === 1
+                ? 'mascota'
+                : 'mascotas'}
             </span>
           </div>
 
@@ -350,92 +534,123 @@ function Mascotas() {
               </thead>
 
               <tbody>
-                {mascotasFiltradas.map((mascota) => {
-                  const cliente = obtenerCliente(mascota.clienteId)
-
-                  return (
-                    <tr key={mascota.id}>
-                      <td>
-                        <div className="mascota-nombre">
-                          <div className="mascota-icono">
-                            <FaPaw />
-                          </div>
-
-                          <div>
-                            <strong>{mascota.nombre}</strong>
-                            <small>
-                              {mascota.raza || 'Raza no registrada'}
-                            </small>
-                          </div>
-                        </div>
-                      </td>
-
-                      <td>
-                        {cliente
-                          ? `${cliente.nombre} ${cliente.apellido}`
-                          : 'Dueño no encontrado'}
-                      </td>
-
-                      <td>
-                        <span className="mascota-especie">
-                          {mascota.especie}
-                        </span>
-                      </td>
-
-                      <td>{mascota.sexo || 'No registrado'}</td>
-
-                      <td>
-                        {mascota.peso
-                          ? `${mascota.peso} kg`
-                          : 'No registrado'}
-                      </td>
-
-                      <td>
-                        <div className="acciones">
-                          <button
-                            type="button"
-                            className="btn-accion ver"
-                            onClick={() => abrirVerMascota(mascota)}
-                            title="Ver mascota"
-                            aria-label={`Ver a ${mascota.nombre}`}
-                          >
-                            <FaEye />
-                          </button>
-
-                          <button
-                            type="button"
-                            className="btn-accion editar"
-                            onClick={() => abrirEditarMascota(mascota)}
-                            title="Editar mascota"
-                            aria-label={`Editar a ${mascota.nombre}`}
-                          >
-                            <FaPen />
-                          </button>
-
-                          <button
-                            type="button"
-                            className="btn-accion eliminar"
-                            onClick={() => eliminarMascota(mascota)}
-                            title="Eliminar mascota"
-                            aria-label={`Eliminar a ${mascota.nombre}`}
-                          >
-                            <FaTrash />
-                          </button>
-                        </div>
-                      </td>
-                    </tr>
-                  )
-                })}
-
-                {mascotasFiltradas.length === 0 && (
+                {cargando && (
                   <tr>
                     <td colSpan="6" className="sin-resultados">
-                      {busqueda
-                        ? 'No se encontraron mascotas con esa búsqueda.'
-                        : 'Todavía no hay mascotas registradas.'}
+                      Cargando mascotas...
                     </td>
                   </tr>
                 )}
+
+                {!cargando &&
+                  mascotasFiltradas.map((mascota) => {
+                    const cliente = obtenerCliente(
+                      mascota.clienteId
+                    )
+
+                    const especie = obtenerEspecie(
+                      mascota.especieId
+                    )
+
+                    return (
+                      <tr key={mascota.id}>
+                        <td>
+                          <div className="mascota-nombre">
+                            <div className="mascota-icono">
+                              <FaPaw />
+                            </div>
+
+                            <div>
+                              <strong>{mascota.nombre}</strong>
+
+                              <small>
+                                {mascota.raza ||
+                                  'Raza no registrada'}
+                              </small>
+                            </div>
+                          </div>
+                        </td>
+
+                        <td>
+                          {cliente
+                            ? `${cliente.nombre} ${cliente.apellido}`
+                            : 'Dueño no encontrado'}
+                        </td>
+
+                        <td>
+                          <span className="mascota-especie">
+                            {especie?.nombre ||
+                              'Especie no encontrada'}
+                          </span>
+                        </td>
+
+                        <td>
+                          {mascota.sexo === 'macho'
+                            ? 'Macho'
+                            : mascota.sexo === 'hembra'
+                              ? 'Hembra'
+                              : 'No registrado'}
+                        </td>
+
+                        <td>
+                          {mascota.peso
+                            ? `${mascota.peso} kg`
+                            : 'No registrado'}
+                        </td>
+
+                        <td>
+                          <div className="acciones">
+                            <button
+                              type="button"
+                              className="btn-accion ver"
+                              onClick={() =>
+                                abrirVerMascota(mascota)
+                              }
+                              title="Ver mascota"
+                              aria-label={`Ver a ${mascota.nombre}`}
+                            >
+                              <FaEye />
+                            </button>
+
+                            <button
+                              type="button"
+                              className="btn-accion editar"
+                              onClick={() =>
+                                abrirEditarMascota(mascota)
+                              }
+                              title="Editar mascota"
+                              aria-label={`Editar a ${mascota.nombre}`}
+                            >
+                              <FaPen />
+                            </button>
+
+                            <button
+                              type="button"
+                              className="btn-accion eliminar"
+                              onClick={() =>
+                                eliminarMascota(mascota)
+                              }
+                              title="Eliminar mascota"
+                              aria-label={`Eliminar a ${mascota.nombre}`}
+                            >
+                              <FaTrash />
+                            </button>
+                          </div>
+                        </td>
+                      </tr>
+                    )
+                  })}
+
+                {!cargando &&
+                  mascotasFiltradas.length === 0 && (
+                    <tr>
+                      <td colSpan="6" className="sin-resultados">
+                        {busqueda
+                          ? 'No se encontraron mascotas con esa búsqueda.'
+                          : 'Todavía no hay mascotas registradas.'}
+                      </td>
+                    </tr>
+                  )}
               </tbody>
             </table>
           </div>
@@ -456,7 +671,9 @@ function Mascotas() {
             {mostrarFormulario ? (
               <>
                 <h2>
-                  {modoEdicion ? 'Editar Mascota' : 'Nueva Mascota'}
+                  {modoEdicion
+                    ? 'Editar Mascota'
+                    : 'Nueva Mascota'}
                 </h2>
 
                 <p>
@@ -479,11 +696,17 @@ function Mascotas() {
                     name="clienteId"
                     value={formulario.clienteId}
                     onChange={manejarCambio}
+                    disabled={guardando}
                   >
-                    <option value="">Seleccionar dueño</option>
+                    <option value="">
+                      Seleccionar dueño
+                    </option>
 
                     {clientes.map((cliente) => (
-                      <option key={cliente.id} value={cliente.id}>
+                      <option
+                        key={cliente.id}
+                        value={cliente.id}
+                      >
                         {cliente.nombre} {cliente.apellido}
                       </option>
                     ))}
@@ -502,6 +725,7 @@ function Mascotas() {
                     maxLength={50}
                     placeholder="Ejemplo: Mora"
                     autoComplete="off"
+                    disabled={guardando}
                   />
 
                   <label htmlFor="mascota-especie">
@@ -510,19 +734,28 @@ function Mascotas() {
 
                   <select
                     id="mascota-especie"
-                    name="especie"
-                    value={formulario.especie}
+                    name="especieId"
+                    value={formulario.especieId}
                     onChange={manejarCambio}
+                    disabled={guardando}
                   >
-                    <option value="">Seleccionar especie</option>
-                    <option value="Perro">Perro</option>
-                    <option value="Gato">Gato</option>
-                    <option value="Ave">Ave</option>
-                    <option value="Conejo">Conejo</option>
-                    <option value="Otro">Otro</option>
+                    <option value="">
+                      Seleccionar especie
+                    </option>
+
+                    {especies.map((especie) => (
+                      <option
+                        key={especie.id}
+                        value={especie.id}
+                      >
+                        {especie.nombre}
+                      </option>
+                    ))}
                   </select>
 
-                  <label htmlFor="mascota-raza">Raza</label>
+                  <label htmlFor="mascota-raza">
+                    Raza <span>*</span>
+                  </label>
 
                   <input
                     id="mascota-raza"
@@ -533,6 +766,7 @@ function Mascotas() {
                     maxLength={50}
                     placeholder="Ejemplo: Labrador"
                     autoComplete="off"
+                    disabled={guardando}
                   />
 
                   <label htmlFor="mascota-fecha">
@@ -546,22 +780,30 @@ function Mascotas() {
                     value={formulario.fechaNacimiento}
                     onChange={manejarCambio}
                     max={fechaActual}
+                    disabled={guardando}
                   />
 
-                  <label htmlFor="mascota-sexo">Sexo</label>
+                  <label htmlFor="mascota-sexo">
+                    Sexo <span>*</span>
+                  </label>
 
                   <select
                     id="mascota-sexo"
                     name="sexo"
                     value={formulario.sexo}
                     onChange={manejarCambio}
+                    disabled={guardando}
                   >
-                    <option value="">Seleccionar sexo</option>
-                    <option value="Macho">Macho</option>
-                    <option value="Hembra">Hembra</option>
+                    <option value="">
+                      Seleccionar sexo
+                    </option>
+                    <option value="macho">Macho</option>
+                    <option value="hembra">Hembra</option>
                   </select>
 
-                  <label htmlFor="mascota-peso">Peso en kilogramos</label>
+                  <label htmlFor="mascota-peso">
+                    Peso en kilogramos
+                  </label>
 
                   <input
                     id="mascota-peso"
@@ -573,10 +815,58 @@ function Mascotas() {
                     maxLength={7}
                     placeholder="Ejemplo: 12.5"
                     autoComplete="off"
+                    disabled={guardando}
+                  />
+
+                  <label htmlFor="mascota-estado">
+                    Estado
+                  </label>
+
+                  <select
+                    id="mascota-estado"
+                    name="estado"
+                    value={formulario.estado}
+                    onChange={manejarCambio}
+                    disabled={guardando}
+                  >
+                    <option value="activo">Activo</option>
+                    <option value="fallecido">
+                      Fallecido
+                    </option>
+                  </select>
+
+                  <label htmlFor="mascota-alergias">
+                    Alergias
+                  </label>
+
+                  <textarea
+                    id="mascota-alergias"
+                    name="alergias"
+                    value={formulario.alergias}
+                    onChange={manejarCambio}
+                    maxLength={500}
+                    placeholder="Ejemplo: alergia a determinado medicamento"
+                    disabled={guardando}
+                  />
+
+                  <label htmlFor="mascota-grupo">
+                    Grupo sanguíneo
+                  </label>
+
+                  <input
+                    id="mascota-grupo"
+                    type="text"
+                    name="grupoSanguineo"
+                    value={formulario.grupoSanguineo}
+                    onChange={manejarCambio}
+                    maxLength={50}
+                    placeholder="Ejemplo: DEA 1.1"
+                    autoComplete="off"
+                    disabled={guardando}
                   />
 
                   <label htmlFor="mascota-observaciones">
-                    Observaciones
+                    Observaciones generales
                   </label>
 
                   <textarea
@@ -586,20 +876,30 @@ function Mascotas() {
                     onChange={manejarCambio}
                     maxLength={500}
                     placeholder="Información adicional sobre la mascota"
+                    disabled={guardando}
                   />
 
                   {errorFormulario && (
-                    <div className="mascota-form-error" role="alert">
+                    <div
+                      className="mascota-form-error"
+                      role="alert"
+                    >
                       {errorFormulario}
                     </div>
                   )}
 
-                  <button type="submit" className="btn-guardar">
+                  <button
+                    type="submit"
+                    className="btn-guardar"
+                    disabled={guardando}
+                  >
                     <FaFloppyDisk />
 
-                    {modoEdicion
-                      ? 'Guardar Cambios'
-                      : 'Guardar Mascota'}
+                    {guardando
+                      ? 'Guardando...'
+                      : modoEdicion
+                        ? 'Guardar Cambios'
+                        : 'Guardar Mascota'}
                   </button>
                 </form>
               </>
@@ -614,9 +914,15 @@ function Mascotas() {
                   </div>
 
                   <div>
-                    <strong>{mascotaSeleccionada.nombre}</strong>
+                    <strong>
+                      {mascotaSeleccionada.nombre}
+                    </strong>
+
                     <span>
-                      {mascotaSeleccionada.especie}
+                      {obtenerEspecie(
+                        mascotaSeleccionada.especieId
+                      )?.nombre || 'Especie no encontrada'}
+
                       {mascotaSeleccionada.raza
                         ? ` · ${mascotaSeleccionada.raza}`
                         : ''}
@@ -628,7 +934,9 @@ function Mascotas() {
                   <div>
                     <span>Dueño</span>
                     <strong>
-                      {obtenerCliente(mascotaSeleccionada.clienteId)
+                      {obtenerCliente(
+                        mascotaSeleccionada.clienteId
+                      )
                         ? `${obtenerCliente(
                             mascotaSeleccionada.clienteId
                           ).nombre} ${
@@ -642,13 +950,18 @@ function Mascotas() {
 
                   <div>
                     <span>Especie</span>
-                    <strong>{mascotaSeleccionada.especie}</strong>
+                    <strong>
+                      {obtenerEspecie(
+                        mascotaSeleccionada.especieId
+                      )?.nombre || 'No registrada'}
+                    </strong>
                   </div>
 
                   <div>
                     <span>Raza</span>
                     <strong>
-                      {mascotaSeleccionada.raza || 'No registrada'}
+                      {mascotaSeleccionada.raza ||
+                        'No registrada'}
                     </strong>
                   </div>
 
@@ -673,7 +986,11 @@ function Mascotas() {
                   <div>
                     <span>Sexo</span>
                     <strong>
-                      {mascotaSeleccionada.sexo || 'No registrado'}
+                      {mascotaSeleccionada.sexo === 'macho'
+                        ? 'Macho'
+                        : mascotaSeleccionada.sexo === 'hembra'
+                          ? 'Hembra'
+                          : 'No registrado'}
                     </strong>
                   </div>
 
@@ -683,6 +1000,32 @@ function Mascotas() {
                       {mascotaSeleccionada.peso
                         ? `${mascotaSeleccionada.peso} kg`
                         : 'No registrado'}
+                    </strong>
+                  </div>
+
+                  <div>
+                    <span>Estado</span>
+                    <strong>
+                      {mascotaSeleccionada.estado ===
+                      'fallecido'
+                        ? 'Fallecido'
+                        : 'Activo'}
+                    </strong>
+                  </div>
+
+                  <div>
+                    <span>Alergias</span>
+                    <strong>
+                      {mascotaSeleccionada.alergias ||
+                        'Sin alergias registradas'}
+                    </strong>
+                  </div>
+
+                  <div>
+                    <span>Grupo sanguíneo</span>
+                    <strong>
+                      {mascotaSeleccionada.grupoSanguineo ||
+                        'No registrado'}
                     </strong>
                   </div>
 
@@ -699,7 +1042,9 @@ function Mascotas() {
                   type="button"
                   className="btn-editar-detalle"
                   onClick={() =>
-                    abrirEditarMascota(mascotaSeleccionada)
+                    abrirEditarMascota(
+                      mascotaSeleccionada
+                    )
                   }
                 >
                   <FaPen />

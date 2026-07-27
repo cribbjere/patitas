@@ -14,11 +14,15 @@ import {
   FaTriangleExclamation,
 } from 'react-icons/fa6'
 
+import { obtenerClientes } from '../services/clientesService'
+import { obtenerMascotas } from '../services/mascotasService'
 import {
-  clientes as clientesIniciales,
-  mascotas as mascotasIniciales,
-  turnos as turnosIniciales,
-} from '../data/mockData'
+  obtenerTurnos,
+  crearTurno,
+  editarTurno,
+  eliminarTurno as eliminarTurnoAPI,
+} from '../services/turnosService'
+
 
 import './Turnos.css'
 
@@ -43,9 +47,10 @@ function obtenerHora(fechaCompleta) {
 }
 
 function Turnos() {
-  const [clientes] = useState(clientesIniciales)
-  const [mascotas] = useState(mascotasIniciales)
-  const [turnos, setTurnos] = useState(turnosIniciales)
+  const [clientes, setClientes] = useState([])
+  const [mascotas, setMascotas] = useState([])
+  const [turnos, setTurnos] = useState([])
+  const [cargando, setCargando] = useState(true)
   const [busqueda, setBusqueda] = useState('')
   const [mostrarFormulario, setMostrarFormulario] = useState(false)
   const [turnoSeleccionado, setTurnoSeleccionado] = useState(null)
@@ -59,10 +64,19 @@ function Turnos() {
   }
 
   const obtenerClienteDeMascota = (mascotaId) => {
-    const mascota = obtenerMascota(mascotaId)
-    if (!mascota) return null
-    return clientes.find((cliente) => cliente.id === mascota.clienteId)
-  }
+  const mascota = obtenerMascota(mascotaId)
+
+  if (!mascota) return null
+
+  const clienteId =
+    mascota.clienteId ??
+    mascota.cliente?.id ??
+    mascota.cliente
+
+  return clientes.find(
+    (cliente) => Number(cliente.id) === Number(clienteId)
+  )
+}
 
   const turnosFiltrados = useMemo(() => {
     const textoBusqueda = busqueda.trim().toLowerCase()
@@ -245,10 +259,11 @@ function Turnos() {
     })
   }
 
-  const guardarTurno = (e) => {
+    const guardarTurno = async (e) => {
     e.preventDefault()
 
     const error = validarFormulario()
+
     if (error) {
       setErrorFormulario(error)
       return
@@ -261,53 +276,107 @@ function Turnos() {
       return
     }
 
-    const fechaInicio = `${formulario.fecha}T${formulario.horaInicio}:00`
-    const fechaFin = `${formulario.fecha}T${formulario.horaFin}:00`
+    const mascotaSeleccionada = obtenerMascota(formulario.mascotaId)
+    const clienteSeleccionado = obtenerClienteDeMascota(formulario.mascotaId)
 
-    if (modoEdicion && turnoSeleccionado) {
-      const turnoActualizado = {
-        ...turnoSeleccionado,
-        mascotaId: formulario.mascotaId,
-        motivo: formulario.motivo,
-        fechaInicio,
-        fechaFin,
-        estado: formulario.estado,
-        observaciones: formulario.observaciones.trim(),
-      }
-
-      setTurnos((turnosActuales) =>
-        turnosActuales.map((turno) =>
-          turno.id === turnoSeleccionado.id ? turnoActualizado : turno
-        )
-      )
-
-      if (formulario.estado === 'Cancelado') {
-        crearAlertaSeguimiento(turnoActualizado, 'Cancelado')
-      } else if (formulario.estado === 'Ausente') {
-        crearAlertaSeguimiento(turnoActualizado, 'Ausente')
-      } else if (
-        formulario.motivo === 'Vacunación' &&
-        formulario.estado !== 'Realizado'
-      ) {
-        crearAlertaSeguimiento(turnoActualizado, 'Vacunación pendiente')
-      }
-    } else {
-      const nuevoTurno = {
-        id: Date.now(),
-        mascotaId: formulario.mascotaId,
-        motivo: formulario.motivo,
-        fechaInicio,
-        fechaFin,
-        estado: formulario.estado,
-        observaciones: formulario.observaciones.trim(),
-      }
-
-      setTurnos((turnosActuales) => [...turnosActuales, nuevoTurno])
+    if (!mascotaSeleccionada) {
+      setErrorFormulario('No se encontró la mascota seleccionada.')
+      return
     }
 
-    cerrarPanel()
-  }
+    if (!clienteSeleccionado) {
+      setErrorFormulario(
+        'No se encontró el cliente relacionado con la mascota.'
+      )
+      return
+    }
 
+    const estadosBackend = {
+      Programado: 'pendiente',
+      Realizado: 'realizado',
+      Cancelado: 'cancelado',
+      Ausente: 'ausente',
+    }
+
+    const datosParaBackend = {
+      cliente: clienteSeleccionado.id,
+      mascota: mascotaSeleccionada.id,
+      fecha: formulario.fecha,
+      hora: `${formulario.horaInicio}:00`,
+      hora_fin: `${formulario.horaFin}:00`,
+      motivo_consulta: formulario.motivo,
+      estado: estadosBackend[formulario.estado] || 'pendiente',
+      observaciones: formulario.observaciones.trim(),
+    }
+
+    try {
+      setErrorFormulario('')
+
+      let respuestaAPI
+
+      if (modoEdicion && turnoSeleccionado) {
+        respuestaAPI = await editarTurno(
+          turnoSeleccionado.id,
+          datosParaBackend
+        )
+      } else {
+        respuestaAPI = await crearTurno(datosParaBackend)
+      }
+
+      const estadoFrontend =
+        respuestaAPI.estado === 'pendiente'
+          ? 'Programado'
+          : respuestaAPI.estado.charAt(0).toUpperCase() +
+            respuestaAPI.estado.slice(1)
+
+      const turnoGuardado = {
+        id: respuestaAPI.id,
+        mascotaId: respuestaAPI.mascota,
+        motivo: respuestaAPI.motivo_consulta,
+        fechaInicio: `${respuestaAPI.fecha}T${respuestaAPI.hora}`,
+        fechaFin: `${respuestaAPI.fecha}T${respuestaAPI.hora_fin}`,
+        estado: estadoFrontend,
+        observaciones: respuestaAPI.observaciones || '',
+      }
+
+      if (modoEdicion && turnoSeleccionado) {
+        setTurnos((turnosActuales) =>
+          turnosActuales.map((turno) =>
+            turno.id === turnoSeleccionado.id
+              ? turnoGuardado
+              : turno
+          )
+        )
+      } else {
+        setTurnos((turnosActuales) => [
+          ...turnosActuales,
+          turnoGuardado,
+        ])
+      }
+
+      if (turnoGuardado.estado === 'Cancelado') {
+        crearAlertaSeguimiento(turnoGuardado, 'Cancelado')
+      } else if (turnoGuardado.estado === 'Ausente') {
+        crearAlertaSeguimiento(turnoGuardado, 'Ausente')
+      } else if (
+        turnoGuardado.motivo === 'Vacunación' &&
+        turnoGuardado.estado !== 'Realizado'
+      ) {
+        crearAlertaSeguimiento(
+          turnoGuardado,
+          'Vacunación pendiente'
+        )
+      }
+
+      cerrarPanel()
+    } catch (error) {
+      console.error('Error al guardar el turno:', error)
+
+      setErrorFormulario(
+        error.message || 'No se pudo guardar el turno.'
+      )
+    }
+  }
   const cambiarEstadoTurno = (id, nuevoEstado) => {
     const turnoEncontrado = turnos.find((turno) => turno.id === id)
     if (!turnoEncontrado || turnoEncontrado.estado === nuevoEstado) return
@@ -351,15 +420,30 @@ function Turnos() {
   const cancelarTurno = (id) => cambiarEstadoTurno(id, 'Cancelado')
   const marcarAusente = (id) => cambiarEstadoTurno(id, 'Ausente')
 
-  const eliminarTurno = (id) => {
-    const confirmar = window.confirm('¿Seguro que querés eliminar este turno?')
-    if (!confirmar) return
-
-    setTurnos((turnosActuales) =>
-      turnosActuales.filter((turno) => turno.id !== id)
+    const eliminarTurno = async (id) => {
+    const confirmar = window.confirm(
+      '¿Seguro que querés eliminar este turno?'
     )
 
-    if (turnoSeleccionado?.id === id) cerrarPanel()
+    if (!confirmar) return
+
+    try {
+      await eliminarTurnoAPI(id)
+
+      setTurnos((turnosActuales) =>
+        turnosActuales.filter((turno) => turno.id !== id)
+      )
+
+      if (turnoSeleccionado?.id === id) {
+        cerrarPanel()
+      }
+    } catch (error) {
+      console.error('Error al eliminar el turno:', error)
+
+      window.alert(
+        error.message || 'No se pudo eliminar el turno.'
+      )
+    }
   }
 
   const obtenerClaseEstado = (estado) => {
@@ -368,7 +452,52 @@ function Turnos() {
     if (estado === 'Ausente') return 'estado-turno ausente'
     return 'estado-turno programado'
   }
+  useEffect(() => {
+  cargarDatos()
+}, [])
 
+async function cargarDatos() {
+  try {
+    setCargando(true)
+
+    const [clientesAPI, mascotasAPI, turnosAPI] =
+      await Promise.all([
+        obtenerClientes(),
+        obtenerMascotas(),
+        obtenerTurnos(),
+      ])
+
+    setClientes(clientesAPI)
+    setMascotas(mascotasAPI)
+
+    const turnosConvertidos = turnosAPI.map((turno) => ({
+      id: turno.id,
+
+      mascotaId: turno.mascota,
+
+      motivo: turno.motivo_consulta,
+
+      fechaInicio: `${turno.fecha}T${turno.hora}`,
+
+      fechaFin: `${turno.fecha}T${turno.hora_fin}`,
+
+      estado:
+        turno.estado === 'pendiente'
+          ? 'Programado'
+          : turno.estado.charAt(0).toUpperCase() +
+            turno.estado.slice(1),
+
+      observaciones: turno.observaciones || '',
+    }))
+
+    setTurnos(turnosConvertidos)
+  } catch (error) {
+    console.error(error)
+    alert(error.message)
+  } finally {
+    setCargando(false)
+  }
+}
   useEffect(() => {
     const revisarTurnosVencidos = () => {
       const ahora = new Date()
@@ -429,7 +558,13 @@ function Turnos() {
     const intervalo = window.setInterval(revisarTurnosVencidos, 60000)
     return () => window.clearInterval(intervalo)
   }, [clientes, mascotas])
-
+  if (cargando) {
+    return (
+      <section className="turnos-page">
+        <h2>Cargando turnos...</h2>
+      </section>
+    )
+  }
 
   return (
     <section className="turnos-page">
