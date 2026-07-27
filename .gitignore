@@ -1,11 +1,32 @@
+# Node / Frontend
 node_modules/
 */node_modules/
 
 dist/
 */dist/
 
+# Python
+__pycache__/
+*.pyc
+
+# Virtual environments
+venv/
+backend/venv/
+
+# Django
+db.sqlite3
+media/
+staticfiles/
+
+# Environment variables
 .env
 .env.local
 
-.DS_Store
+# VS Code
 .vscode/
+
+# macOS
+.DS_Store
+
+# Logs
+*.log
