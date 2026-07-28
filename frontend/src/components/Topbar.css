@@ -277,3 +277,29 @@
 .menu-button {
     display: none !important;
 }
+.btn-cerrar-sesion {
+  width: 40px;
+  height: 40px;
+  border: none;
+  border-radius: 10px;
+  background-color: transparent;
+  color: #34495e;
+  font-size: 19px;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  cursor: pointer;
+  transition:
+    background-color 0.2s ease,
+    color 0.2s ease;
+}
+
+.btn-cerrar-sesion:hover {
+  background-color: #fce8e8;
+  color: #c62828;
+}
+
+.btn-cerrar-sesion:disabled {
+  cursor: not-allowed;
+  opacity: 0.6;
+}

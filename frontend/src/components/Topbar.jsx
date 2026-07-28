@@ -1,5 +1,12 @@
 import { useEffect, useState } from 'react'
-import { FaBars, FaBell, FaUserDoctor, FaPhone, FaWhatsapp } from 'react-icons/fa6'
+import { useNavigate } from 'react-router-dom'
+import {
+  FaBell,
+  FaUserDoctor,
+  FaPhone,
+  FaWhatsapp,
+  FaRightFromBracket,
+} from 'react-icons/fa6'
 import {
   obtenerAlertasSistema,
   marcarAlertaComoLeida,
@@ -8,6 +15,19 @@ import {
 import './Topbar.css'
 
 function Topbar() {
+    const navigate = useNavigate()
+
+  const usuarioGuardado = localStorage.getItem('usuario')
+
+  let usuario = null
+
+  try {
+    usuario = usuarioGuardado
+      ? JSON.parse(usuarioGuardado)
+      : null
+  } catch {
+    usuario = null
+  }
   const [alertas, setAlertas] = useState([])
   const [mostrarAlertas, setMostrarAlertas] = useState(false)
 
@@ -28,7 +48,34 @@ function Topbar() {
   }, [])
 
   const cantidadNoLeidas = alertas.filter((alerta) => !alerta.leida).length
+    const obtenerNombreUsuario = () => {
+    if (!usuario) return 'Usuario'
 
+    const nombreCompleto = `${usuario.first_name || ''} ${
+      usuario.last_name || ''
+    }`.trim()
+
+    return nombreCompleto || usuario.username || 'Usuario'
+  }
+
+  const formatearRol = (rol) => {
+    const nombresRoles = {
+      administrador: 'Administrador',
+      recepcionista: 'Recepcionista',
+      veterinario: 'Veterinario',
+      ventas: 'Ventas',
+      higiene: 'Higiene',
+    }
+
+    return nombresRoles[rol] || 'Sin rol asignado'
+  }
+
+  const cerrarSesion = () => {
+    localStorage.removeItem('token')
+    localStorage.removeItem('usuario')
+
+    navigate('/', { replace: true })
+  }
   const armarTelefono = (telefono) => {
     if (!telefono) return ''
 
@@ -169,13 +216,22 @@ function Topbar() {
         </div>
 
         <div className="admin-info">
-          <strong>Administrador</strong>
-          <small>Administrador</small>
-        </div>
+  <strong>{obtenerNombreUsuario()}</strong>
+  <small>{formatearRol(usuario?.rol)}</small>
+</div>
 
-        <div className="admin-avatar">
-          <FaUserDoctor />
-        </div>
+<div className="admin-avatar">
+  <FaUserDoctor />
+</div>
+
+<button
+  type="button"
+  className="btn-cerrar-sesion"
+  onClick={cerrarSesion}
+  title="Cerrar sesión"
+>
+  <FaRightFromBracket />
+</button>
       </div>
     </header>
   )

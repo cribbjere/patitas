@@ -20,9 +20,9 @@ import {
   obtenerTurnos,
   crearTurno,
   editarTurno,
+  editarTurnoParcial,
   eliminarTurno as eliminarTurnoAPI,
 } from '../services/turnosService'
-
 
 import './Turnos.css'
 
@@ -377,23 +377,47 @@ function Turnos() {
       )
     }
   }
-  const cambiarEstadoTurno = (id, nuevoEstado) => {
-    const turnoEncontrado = turnos.find((turno) => turno.id === id)
-    if (!turnoEncontrado || turnoEncontrado.estado === nuevoEstado) return
+ const cambiarEstadoTurno = async (id, nuevoEstado) => {
+  const turnoEncontrado = turnos.find((turno) => turno.id === id)
 
-    if (nuevoEstado === 'Cancelado') {
-      const confirmar = window.confirm('¿Seguro que querés cancelar este turno?')
-      if (!confirmar) return
+  if (!turnoEncontrado || turnoEncontrado.estado === nuevoEstado) return
+
+  if (nuevoEstado === 'Cancelado') {
+    const confirmar = window.confirm(
+      '¿Seguro que querés cancelar este turno?'
+    )
+    if (!confirmar) return
+  }
+
+  if (nuevoEstado === 'Ausente') {
+    const confirmar = window.confirm(
+      '¿Seguro que querés marcar este turno como ausente?'
+    )
+    if (!confirmar) return
+  }
+
+  const estadosBackend = {
+    Programado: 'pendiente',
+    Realizado: 'realizado',
+    Cancelado: 'cancelado',
+    Ausente: 'ausente',
+  }
+
+  try {
+    const respuesta = await editarTurnoParcial(id, {
+      estado: estadosBackend[nuevoEstado],
+    })
+
+    const estadoFrontend =
+      respuesta.estado === 'pendiente'
+        ? 'Programado'
+        : respuesta.estado.charAt(0).toUpperCase() +
+          respuesta.estado.slice(1)
+
+    const turnoActualizado = {
+      ...turnoEncontrado,
+      estado: estadoFrontend,
     }
-
-    if (nuevoEstado === 'Ausente') {
-      const confirmar = window.confirm(
-        '¿Seguro que querés marcar este turno como ausente?'
-      )
-      if (!confirmar) return
-    }
-
-    const turnoActualizado = { ...turnoEncontrado, estado: nuevoEstado }
 
     setTurnos((turnosActuales) =>
       turnosActuales.map((turno) =>
@@ -405,18 +429,24 @@ function Turnos() {
       setTurnoSeleccionado(turnoActualizado)
     }
 
-    if (nuevoEstado === 'Cancelado') {
+    if (estadoFrontend === 'Cancelado') {
       crearAlertaSeguimiento(turnoActualizado, 'Cancelado')
-    } else if (nuevoEstado === 'Ausente') {
+    } else if (estadoFrontend === 'Ausente') {
       crearAlertaSeguimiento(turnoActualizado, 'Ausente')
     } else if (
       turnoActualizado.motivo === 'Vacunación' &&
-      nuevoEstado !== 'Realizado'
+      estadoFrontend !== 'Realizado'
     ) {
-      crearAlertaSeguimiento(turnoActualizado, 'Vacunación pendiente')
+      crearAlertaSeguimiento(
+        turnoActualizado,
+        'Vacunación pendiente'
+      )
     }
+  } catch (error) {
+    console.error(error)
+    window.alert(error.message)
   }
-
+}
   const cancelarTurno = (id) => cambiarEstadoTurno(id, 'Cancelado')
   const marcarAusente = (id) => cambiarEstadoTurno(id, 'Ausente')
 

@@ -1,4 +1,4 @@
-import { useState } from 'react'
+import { useEffect, useState } from 'react'
 import {
   FaMagnifyingGlass,
   FaPlus,
@@ -10,45 +10,16 @@ import {
   FaStethoscope,
 } from 'react-icons/fa6'
 
+import { obtenerClientes } from '../services/clientesService'
+import { obtenerMascotas } from '../services/mascotasService'
 import {
-  clientes as clientesIniciales,
-  mascotas as mascotasIniciales,
-} from '../data/mockData'
+  obtenerConsultas,
+  crearConsulta,
+  editarConsulta,
+  eliminarConsulta as eliminarConsultaAPI,
+} from '../services/consultasService'
 
 import './Consultas.css'
-
-const consultasIniciales = [
-  {
-    id: 1,
-    mascotaId: 1,
-    fecha: '2026-06-20',
-    peso: 18.5,
-    temperatura: 38.2,
-    diagnostico: 'Control general sin complicaciones.',
-    tratamiento: 'Continuar alimentación habitual.',
-    observaciones: 'Paciente tranquilo durante la revisión.',
-  },
-  {
-    id: 2,
-    mascotaId: 2,
-    fecha: '2026-06-21',
-    peso: 4.2,
-    temperatura: 38.6,
-    diagnostico: 'Revisión por vacunación.',
-    tratamiento: 'Aplicar refuerzo según calendario.',
-    observaciones: 'Se recomienda próximo control en 30 días.',
-  },
-  {
-    id: 3,
-    mascotaId: 3,
-    fecha: '2026-06-22',
-    peso: 5.1,
-    temperatura: 38.4,
-    diagnostico: 'Control de rutina.',
-    tratamiento: 'Sin medicación indicada.',
-    observaciones: 'Buen estado general.',
-  },
-]
 
 const consultaVacia = {
   mascotaId: '',
@@ -61,9 +32,10 @@ const consultaVacia = {
 }
 
 function Consultas() {
-  const [clientes] = useState(clientesIniciales)
-  const [mascotas] = useState(mascotasIniciales)
-  const [consultas, setConsultas] = useState(consultasIniciales)
+  const [clientes, setClientes] = useState([])
+  const [mascotas, setMascotas] = useState([])
+  const [consultas, setConsultas] = useState([])
+  const [cargando, setCargando] = useState(true)
   const [busqueda, setBusqueda] = useState('')
   const [mostrarFormulario, setMostrarFormulario] = useState(false)
   const [consultaSeleccionada, setConsultaSeleccionada] = useState(null)
@@ -75,13 +47,47 @@ function Consultas() {
   }
 
   const obtenerClienteDeMascota = (mascotaId) => {
-    const mascota = obtenerMascota(mascotaId)
+  const mascota = obtenerMascota(mascotaId)
 
-    if (!mascota) return null
+  if (!mascota) return null
 
-    return clientes.find((cliente) => cliente.id === mascota.clienteId)
+  const clienteId =
+    mascota.clienteId ??
+    mascota.cliente?.id ??
+    mascota.cliente
+
+  return clientes.find(
+    (cliente) => Number(cliente.id) === Number(clienteId)
+  )
+}
+  const cargarDatos = async () => {
+  try {
+    setCargando(true)
+
+    const [
+      clientesAPI,
+      mascotasAPI,
+      consultasAPI,
+    ] = await Promise.all([
+      obtenerClientes(),
+      obtenerMascotas(),
+      obtenerConsultas(),
+    ])
+
+    setClientes(clientesAPI)
+    setMascotas(mascotasAPI)
+    setConsultas(consultasAPI)
+  } catch (error) {
+    console.error(error)
+    alert(error.message)
+  } finally {
+    setCargando(false)
   }
+}
 
+useEffect(() => {
+  cargarDatos()
+}, [])
   const consultasFiltradas = consultas.filter((consulta) => {
     const mascota = obtenerMascota(consulta.mascotaId)
     const cliente = obtenerClienteDeMascota(consulta.mascotaId)

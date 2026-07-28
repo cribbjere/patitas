@@ -14,7 +14,7 @@ import Ventas from '../pages/Ventas'
 import Reportes from '../pages/Reportes'
 import Usuarios from '../pages/Usuarios'
 import Configuracion from '../pages/Configuracion'
-
+import RutaProtegida from './RutaProtegida'
 import MainLayout from '../layouts/MainLayout'
 
 function AppRouter() {
@@ -23,21 +23,23 @@ function AppRouter() {
       <Routes>
         <Route path="/" element={<Login />} />
 
-        <Route element={<MainLayout />}>
-          <Route path="/dashboard" element={<Dashboard />} />
-          <Route path="/clientes" element={<Clientes />} />
-          <Route path="/mascotas" element={<Mascotas />} />
-          <Route path="/turnos" element={<Turnos />} />
-          <Route path="/consultas" element={<Consultas />} />
-          <Route path="/vacunaciones" element={<Vacunaciones />} />
-          <Route path="/higiene" element={<Higiene />} />
-          <Route path="/productos" element={<Productos />} />
-          <Route path="/stock" element={<Stock />} />
-          <Route path="/ventas" element={<Ventas />} />
-          <Route path="/reportes" element={<Reportes />} />
-          <Route path="/usuarios" element={<Usuarios />} />
-          <Route path="/configuracion" element={<Configuracion />} />
-        </Route>
+        <Route element={<RutaProtegida />}>
+  <Route element={<MainLayout />}>
+    <Route path="/dashboard" element={<Dashboard />} />
+    <Route path="/clientes" element={<Clientes />} />
+    <Route path="/mascotas" element={<Mascotas />} />
+    <Route path="/turnos" element={<Turnos />} />
+    <Route path="/consultas" element={<Consultas />} />
+    <Route path="/vacunaciones" element={<Vacunaciones />} />
+    <Route path="/higiene" element={<Higiene />} />
+    <Route path="/productos" element={<Productos />} />
+    <Route path="/stock" element={<Stock />} />
+    <Route path="/ventas" element={<Ventas />} />
+    <Route path="/reportes" element={<Reportes />} />
+    <Route path="/usuarios" element={<Usuarios />} />
+    <Route path="/configuracion" element={<Configuracion />} />
+  </Route>
+</Route>
       </Routes>
     </BrowserRouter>
   )
