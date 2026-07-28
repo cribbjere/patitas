@@ -1,4 +1,4 @@
-import { useMemo, useState } from 'react'
+import { useEffect, useMemo, useState } from 'react'
 import {
   FaMagnifyingGlass,
   FaPlus,
@@ -13,7 +13,12 @@ import {
   FaCircleCheck,
 } from 'react-icons/fa6'
 
-import { usuarios as usuariosIniciales } from '../data/mockData'
+import {
+  obtenerUsuarios,
+  crearUsuario,
+  actualizarUsuario,
+  eliminarUsuario as eliminarUsuarioApi,
+} from '../services/usuariosService'
 import './Usuarios.css'
 
 const permisosPorRol = {
@@ -46,7 +51,8 @@ const usuarioVacio = {
 }
 
 function Usuarios() {
-  const [usuarios, setUsuarios] = useState(usuariosIniciales)
+  const [usuarios, setUsuarios] = useState([])
+  const [cargando, setCargando] = useState(true)
   const [busqueda, setBusqueda] = useState('')
   const [mostrarFormulario, setMostrarFormulario] = useState(false)
   const [usuarioSeleccionado, setUsuarioSeleccionado] = useState(null)
@@ -55,6 +61,33 @@ function Usuarios() {
   const [errores, setErrores] = useState({})
   const [mensaje, setMensaje] = useState(null)
   const [usuarioAEliminar, setUsuarioAEliminar] = useState(null)
+  useEffect(() => {
+  cargarUsuarios()
+}, [])
+
+const cargarUsuarios = async () => {
+  try {
+    setCargando(true)
+
+    const datos = await obtenerUsuarios()
+
+    const usuariosFormateados = datos.map((u) => ({
+      id: u.id,
+      nombre: `${u.first_name} ${u.last_name}`.trim(),
+      usuario: u.username,
+      email: u.email,
+      rol: u.rol,
+      estado: u.estado === 'activo',
+    }))
+
+    setUsuarios(usuariosFormateados)
+  } catch (error) {
+    console.error(error)
+    mostrarMensaje('No se pudieron cargar los usuarios.')
+  } finally {
+    setCargando(false)
+  }
+}
 
   const usuariosFiltrados = useMemo(() => {
     const termino = busqueda.trim().toLowerCase()

@@ -59,16 +59,22 @@ function Topbar() {
   }
 
   const formatearRol = (rol) => {
-    const nombresRoles = {
-      administrador: 'Administrador',
-      recepcionista: 'Recepcionista',
-      veterinario: 'Veterinario',
-      ventas: 'Ventas',
-      higiene: 'Higiene',
-    }
-
-    return nombresRoles[rol] || 'Sin rol asignado'
+  if (!rol) {
+    return 'Sin rol asignado'
   }
+
+  const nombresRoles = {
+    administrador: 'Administrador',
+    recepcionista: 'Recepcionista',
+    veterinario: 'Veterinario',
+    ventas: 'Ventas',
+    higiene: 'Higiene',
+  }
+
+  const rolNormalizado = rol.trim().toLowerCase()
+
+  return nombresRoles[rolNormalizado] || rol
+}
 
   const cerrarSesion = () => {
     localStorage.removeItem('token')

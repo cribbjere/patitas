@@ -71,7 +71,10 @@ export const tienePermiso = (modulo) => {
     return false
   }
 
-  const permisosDelRol = PERMISOS_POR_ROL[usuario.rol] || []
+  const rolNormalizado = usuario.rol.trim().toLowerCase()
+  const moduloNormalizado = modulo.trim().toLowerCase()
 
-  return permisosDelRol.includes(modulo)
+  const permisosDelRol = PERMISOS_POR_ROL[rolNormalizado] || []
+
+  return permisosDelRol.includes(moduloNormalizado)
 }
