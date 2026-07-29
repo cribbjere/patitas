@@ -9,10 +9,10 @@ from .models import (
 
 
 class ConsultaSerializer(serializers.ModelSerializer):
-
     class Meta:
         model = Consulta
         fields = '__all__'
+        read_only_fields = ['usuario', 'precio']
 
 
 class VacunacionSerializer(serializers.ModelSerializer):

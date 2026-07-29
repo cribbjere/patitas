@@ -12,6 +12,8 @@ import {
 
 import { obtenerClientes } from '../services/clientesService'
 import { obtenerMascotas } from '../services/mascotasService'
+import { obtenerTurnos } from '../services/turnosService'
+import { obtenerServicios } from '../services/serviciosService'
 import {
   obtenerConsultas,
   crearConsulta,
@@ -20,20 +22,25 @@ import {
 } from '../services/consultasService'
 
 import './Consultas.css'
-
 const consultaVacia = {
   mascotaId: '',
+  servicioId: '',
+  turnoId: '',
   fecha: '',
   peso: '',
   temperatura: '',
   diagnostico: '',
   tratamiento: '',
   observaciones: '',
+  estado: 'Pendiente',
+  proximoControl: '',
 }
 
 function Consultas() {
   const [clientes, setClientes] = useState([])
   const [mascotas, setMascotas] = useState([])
+  const [servicios, setServicios] = useState([])
+  const [turnos, setTurnos] = useState([])
   const [consultas, setConsultas] = useState([])
   const [cargando, setCargando] = useState(true)
   const [busqueda, setBusqueda] = useState('')
@@ -43,9 +50,10 @@ function Consultas() {
   const [formulario, setFormulario] = useState(consultaVacia)
 
   const obtenerMascota = (mascotaId) => {
-    return mascotas.find((mascota) => mascota.id === mascotaId)
-  }
-
+  return mascotas.find(
+    (mascota) => Number(mascota.id) === Number(mascotaId)
+  )
+}
   const obtenerClienteDeMascota = (mascotaId) => {
   const mascota = obtenerMascota(mascotaId)
 
@@ -60,26 +68,58 @@ function Consultas() {
     (cliente) => Number(cliente.id) === Number(clienteId)
   )
 }
-  const cargarDatos = async () => {
+const cargarDatos = async () => {
   try {
     setCargando(true)
 
     const [
-      clientesAPI,
-      mascotasAPI,
-      consultasAPI,
-    ] = await Promise.all([
-      obtenerClientes(),
-      obtenerMascotas(),
-      obtenerConsultas(),
-    ])
+  clientesAPI,
+  mascotasAPI,
+  serviciosAPI,
+  turnosAPI,
+  consultasAPI,
+] = await Promise.all([
+  obtenerClientes(),
+  obtenerMascotas(),
+  obtenerServicios(),
+  obtenerTurnos(),
+  obtenerConsultas(),
+])
 
     setClientes(clientesAPI)
     setMascotas(mascotasAPI)
-    setConsultas(consultasAPI)
+    setServicios(serviciosAPI)
+    setTurnos(turnosAPI)
+
+    const consultasConvertidas = consultasAPI.map((consulta) => ({
+      id: consulta.id,
+      mascotaId: consulta.mascota,
+      servicioId: consulta.servicio,
+      fecha: consulta.fecha_consulta,
+      peso: consulta.peso_actual ?? '',
+      temperatura: consulta.temperatura ?? '',
+      diagnostico: consulta.diagnostico,
+      tratamiento: consulta.tratamiento,
+      observaciones: consulta.observaciones || '',
+      estado:
+        consulta.estado === 'realizada'
+          ? 'Realizada'
+          : consulta.estado === 'cancelada'
+            ? 'Cancelada'
+            : 'Pendiente',
+      proximoControl: consulta.proximo_control || '',
+      precio: consulta.precio,
+      turnoId: consulta.turno,
+    }))
+
+    setConsultas(consultasConvertidas)
   } catch (error) {
-    console.error(error)
-    alert(error.message)
+    console.error('Error al cargar las consultas:', error)
+
+    window.alert(
+      error.response?.data?.detail ||
+      'No se pudieron cargar los datos de consultas.'
+    )
   } finally {
     setCargando(false)
   }
@@ -128,14 +168,16 @@ useEffect(() => {
   const abrirEditarConsulta = (consulta) => {
     setFormulario({
       mascotaId: consulta.mascotaId,
+      servicioId: consulta.servicioId,
       fecha: consulta.fecha,
       peso: consulta.peso,
       temperatura: consulta.temperatura,
       diagnostico: consulta.diagnostico,
       tratamiento: consulta.tratamiento,
       observaciones: consulta.observaciones,
-    })
-
+      estado: consulta.estado,
+      proximoControl: consulta.proximoControl,
+})
     setConsultaSeleccionada(consulta)
     setModoEdicion(true)
     setMostrarFormulario(true)
@@ -153,76 +195,104 @@ useEffect(() => {
 
     setFormulario({
       ...formulario,
-      [name]: name === 'mascotaId' ? Number(value) : value,
+      [name]:
+      name === 'mascotaId' || name === 'servicioId'
+          ? (value ? Number(value) : '')
+          : value,
     })
   }
 
-  const guardarConsulta = (e) => {
-    e.preventDefault()
+  const guardarConsulta = async (e) => {
+  e.preventDefault()
 
-    if (
-      !formulario.mascotaId ||
-      !formulario.fecha ||
-      !formulario.diagnostico ||
-      !formulario.tratamiento
-    ) {
-      alert('Completá mascota, fecha, diagnóstico y tratamiento.')
-      return
-    }
-
-    if (modoEdicion) {
-      const consultasActualizadas = consultas.map((consulta) => {
-        if (consulta.id === consultaSeleccionada.id) {
-          return {
-            id: consultaSeleccionada.id,
-            mascotaId: formulario.mascotaId,
-            fecha: formulario.fecha,
-            peso: Number(formulario.peso),
-            temperatura: Number(formulario.temperatura),
-            diagnostico: formulario.diagnostico,
-            tratamiento: formulario.tratamiento,
-            observaciones: formulario.observaciones,
-          }
-        }
-
-        return consulta
-      })
-
-      setConsultas(consultasActualizadas)
-    } else {
-      const nuevaConsulta = {
-        id: Date.now(),
-        mascotaId: formulario.mascotaId,
-        fecha: formulario.fecha,
-        peso: Number(formulario.peso),
-        temperatura: Number(formulario.temperatura),
-        diagnostico: formulario.diagnostico,
-        tratamiento: formulario.tratamiento,
-        observaciones: formulario.observaciones,
-      }
-
-      setConsultas([...consultas, nuevaConsulta])
-    }
-
-    cerrarPanel()
+  if (
+    !formulario.mascotaId ||
+    !formulario.servicioId ||
+    !formulario.fecha ||
+    !formulario.diagnostico ||
+    !formulario.tratamiento
+  ) {
+    alert('Completá todos los campos obligatorios.')
+    return
   }
 
-  const eliminarConsulta = (id) => {
-    const confirmar = window.confirm('¿Seguro que querés eliminar esta consulta?')
+  const datos = {
+    mascota: formulario.mascotaId,
+    servicio: formulario.servicioId,
+    turno: formulario.turnoId || null,
+    fecha_consulta: formulario.fecha,
+    peso_actual: formulario.peso || null,
+    temperatura: formulario.temperatura || null,
+    diagnostico: formulario.diagnostico,
+    tratamiento: formulario.tratamiento,
+    observaciones: formulario.observaciones,
+    estado: formulario.estado.toLowerCase(),
+    proximo_control: formulario.proximoControl || null,
+  }
 
-    if (!confirmar) return
+  try {
 
-    const consultasActualizadas = consultas.filter(
-      (consulta) => consulta.id !== id
+    if (modoEdicion) {
+
+      await editarConsulta(
+        consultaSeleccionada.id,
+        datos
+      )
+
+    } else {
+
+      await crearConsulta(datos)
+
+    }
+
+    await cargarDatos()
+
+    cerrarPanel()
+
+  } catch (error) {
+
+    console.error(error)
+
+    alert(
+      error.response?.data?.detail ||
+      Object.values(error.response?.data || {})
+        .flat()
+        .join(' ') ||
+      'No se pudo guardar la consulta.'
     )
 
-    setConsultas(consultasActualizadas)
+  }
+}
+
+ const eliminarConsulta = async (id) => {
+  const confirmar = window.confirm(
+    '¿Seguro que querés eliminar esta consulta?'
+  )
+
+  if (!confirmar) return
+
+  try {
+    await eliminarConsultaAPI(id)
+
+    setConsultas((consultasActuales) =>
+      consultasActuales.filter((consulta) => consulta.id !== id)
+    )
 
     if (consultaSeleccionada?.id === id) {
       cerrarPanel()
     }
-  }
+  } catch (error) {
+    console.error(error)
 
+    window.alert(
+      error.response?.data?.detail ||
+      Object.values(error.response?.data || {})
+        .flat()
+        .join(' ') ||
+      'No se pudo eliminar la consulta.'
+    )
+  }
+}
   return (
     <section className="consultas-page">
       <div className="consultas-header">
@@ -380,7 +450,21 @@ useEffect(() => {
                       )
                     })}
                   </select>
+                  <label>Servicio</label>
 
+<select
+  name="servicioId"
+  value={formulario.servicioId}
+  onChange={manejarCambio}
+>
+  <option value="">Seleccionar servicio</option>
+
+  {servicios.map((servicio) => (
+    <option key={servicio.id} value={servicio.id}>
+      {servicio.nombre} - ${servicio.precio}
+    </option>
+  ))}
+</select>
                   <label>Fecha</label>
                   <input
                     type="date"
@@ -427,6 +511,25 @@ useEffect(() => {
                     value={formulario.observaciones}
                     onChange={manejarCambio}
                   />
+                  <label>Estado</label>
+
+<select
+  name="estado"
+  value={formulario.estado}
+  onChange={manejarCambio}
+>
+  <option value="Pendiente">Pendiente</option>
+  <option value="Realizada">Realizada</option>
+  <option value="Cancelada">Cancelada</option>
+</select>
+<label>Próximo Control</label>
+
+<input
+  type="date"
+  name="proximoControl"
+  value={formulario.proximoControl}
+  onChange={manejarCambio}
+/>
 
                   <button type="submit" className="btn-guardar">
                     <FaFloppyDisk />
