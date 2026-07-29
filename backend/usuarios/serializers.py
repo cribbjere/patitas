@@ -125,21 +125,22 @@ class AdministrarUsuarioSerializer(serializers.ModelSerializer):
         rol = validated_data.pop('rol')
         estado = validated_data.pop('estado', 'activo')
         password = validated_data.pop('password')
-
         usuario = User.objects.create_user(
-            password=password,
-            **validated_data,
-        )
-
+        password=password,
+        **validated_data,
+    )
         usuario.is_active = estado == 'activo'
         usuario.save(update_fields=['is_active'])
-
-        PerfilUsuario.objects.create(
-            usuario=usuario,
-            rol=rol,
-            estado=estado,
-        )
-
+        perfil, _ = PerfilUsuario.objects.get_or_create(
+        usuario=usuario,
+        defaults={
+            'rol': rol,
+            'estado': estado,
+        },
+    )
+        perfil.rol = rol
+        perfil.estado = estado
+        perfil.save()
         return usuario
 
     @transaction.atomic

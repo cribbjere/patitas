@@ -22,7 +22,7 @@ import {
 import './Usuarios.css'
 
 const permisosPorRol = {
-  Administrador: [
+  administrador: [
     'Dashboard',
     'Clientes',
     'Mascotas',
@@ -37,10 +37,29 @@ const permisosPorRol = {
     'Usuarios',
     'Configuración',
   ],
-  Recepcionista: ['Dashboard', 'Clientes', 'Mascotas', 'Turnos'],
-  Veterinario: ['Dashboard', 'Mascotas', 'Consultas', 'Vacunaciones'],
-  Ventas: ['Dashboard', 'Productos', 'Stock', 'Ventas'],
-  Higiene: ['Dashboard', 'Mascotas', 'Higiene'],
+  recepcionista: [
+    'Dashboard',
+    'Clientes',
+    'Mascotas',
+    'Turnos',
+  ],
+  veterinario: [
+    'Dashboard',
+    'Mascotas',
+    'Consultas',
+    'Vacunaciones',
+  ],
+  ventas: [
+    'Dashboard',
+    'Productos',
+    'Stock',
+    'Ventas',
+  ],
+  higiene: [
+    'Dashboard',
+    'Mascotas',
+    'Higiene',
+  ],
 }
 
 const usuarioVacio = {
@@ -210,45 +229,48 @@ const cargarUsuarios = async () => {
     return Object.keys(nuevosErrores).length === 0
   }
 
-  const guardarUsuario = (e) => {
-    e.preventDefault()
+  const guardarUsuario = async (e) => {
+  e.preventDefault()
 
-    if (!validarFormulario()) return
+  if (!validarFormulario()) return
 
-    const datosUsuario = {
-      nombre: formulario.nombre.trim(),
-      usuario: formulario.usuario.trim(),
-      rol: formulario.rol,
-      estado: formulario.estado,
-    }
+  const nombreCompleto = formulario.nombre.trim().split(' ')
 
-    if (modoEdicion) {
-      setUsuarios((actuales) =>
-        actuales.map((usuario) =>
-          usuario.id === usuarioSeleccionado.id
-            ? { ...usuario, ...datosUsuario }
-            : usuario
-        )
-      )
-
-      cerrarPanel()
-      mostrarMensaje('Usuario actualizado correctamente.', 'exito')
-      return
-    }
-
-    const nuevoUsuario = {
-      id: Date.now(),
-      ...datosUsuario,
-    }
-
-    setUsuarios((actuales) => [...actuales, nuevoUsuario])
-    cerrarPanel()
-    mostrarMensaje(
-      'Usuario creado correctamente. Contraseña predeterminada: Patitas123',
-      'exito'
-    )
+  const datosUsuario = {
+    username: formulario.usuario.trim(),
+    first_name: nombreCompleto[0] || '',
+    last_name: nombreCompleto.slice(1).join(' '),
+    password: 'Patitas123',
+    rol: formulario.rol.trim().toLowerCase(),
+    estado: formulario.estado ? 'activo' : 'inactivo',
   }
 
+  try {
+    if (modoEdicion) {
+      await actualizarUsuario(usuarioSeleccionado.id, datosUsuario)
+
+      mostrarMensaje('Usuario actualizado correctamente.', 'exito')
+    } else {
+      await crearUsuario(datosUsuario)
+
+      mostrarMensaje(
+        'Usuario creado correctamente. Contraseña predeterminada: Patitas123',
+        'exito'
+      )
+    }
+
+    await cargarUsuarios()
+    cerrarPanel()
+  } catch (error) {
+  console.error('Error al guardar usuario:', error.response?.data)
+
+  mostrarMensaje(
+    error.response?.data
+      ? JSON.stringify(error.response.data)
+      : 'Ocurrió un error al guardar el usuario.'
+  )
+}
+}
   const solicitarEliminarUsuario = (usuario) => {
     if (usuario.rol === 'Administrador') {
       mostrarMensaje('No se puede eliminar el usuario administrador principal.')
@@ -258,25 +280,39 @@ const cargarUsuarios = async () => {
     setUsuarioAEliminar(usuario)
   }
 
-  const eliminarUsuario = () => {
-    if (!usuarioAEliminar) return
+const eliminarUsuario = async () => {
+  if (!usuarioAEliminar) return
 
-    setUsuarios((actuales) =>
-      actuales.filter((usuario) => usuario.id !== usuarioAEliminar.id)
-    )
+  try {
+    await eliminarUsuarioApi(usuarioAEliminar.id)
 
     if (usuarioSeleccionado?.id === usuarioAEliminar.id) {
       cerrarPanel()
     }
 
     setUsuarioAEliminar(null)
+
+    await cargarUsuarios()
+
     mostrarMensaje('Usuario eliminado correctamente.', 'exito')
+  } catch (error) {
+    console.error(
+      'Error al eliminar usuario:',
+      error.response?.data || error
+    )
+
+    mostrarMensaje(
+      error.response?.data?.detail ||
+        'No se pudo eliminar el usuario.'
+    )
   }
+}
 
-  const permisosFormulario = permisosPorRol[formulario.rol] || []
-  const permisosSeleccionado =
-    permisosPorRol[usuarioSeleccionado?.rol] || []
+  const permisosFormulario =
+  permisosPorRol[formulario.rol?.toLowerCase()] || []
 
+const permisosSeleccionado =
+  permisosPorRol[usuarioSeleccionado?.rol?.toLowerCase()] || []
   return (
     <section className="usuarios-page">
       <div className="usuarios-header">
@@ -371,7 +407,7 @@ const cargarUsuarios = async () => {
 
                     <td>{usuario.usuario}</td>
                     <td>{usuario.rol}</td>
-                    <td>{permisosPorRol[usuario.rol]?.length || 0} módulos</td>
+                    <td>{permisosPorRol[usuario.rol?.toLowerCase()]?.length || 0} módulos</td>
 
                     <td>
                       <span
