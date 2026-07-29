@@ -16,7 +16,7 @@ export const crearMascota = async (datosMascota) => {
 }
 
 export const actualizarMascota = async (id, datosMascota) => {
-  const respuesta = await api.put(`/mascotas/${id}/`, datosMascota)
+  const respuesta = await api.patch(`/mascotas/${id}/`, datosMascota)
   return respuesta.data
 }
 

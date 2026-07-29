@@ -373,8 +373,10 @@ function Turnos() {
       console.error('Error al guardar el turno:', error)
 
       setErrorFormulario(
-        error.message || 'No se pudo guardar el turno.'
-      )
+  error.response?.data?.detail ||
+  Object.values(error.response?.data || {}).flat().join(' ') ||
+  'No se pudo guardar el turno.'
+)
     }
   }
  const cambiarEstadoTurno = async (id, nuevoEstado) => {
@@ -444,7 +446,11 @@ function Turnos() {
     }
   } catch (error) {
     console.error(error)
-    window.alert(error.message)
+    window.alert(
+  error.response?.data?.detail ||
+  Object.values(error.response?.data || {}).flat().join(' ') ||
+  'No se pudo actualizar el estado del turno.'
+)
   }
 }
   const cancelarTurno = (id) => cambiarEstadoTurno(id, 'Cancelado')
