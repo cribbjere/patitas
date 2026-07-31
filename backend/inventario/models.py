@@ -1,5 +1,7 @@
-from django.db import models
-from django.db.models.signals import post_save
+from django.core.exceptions import ValidationError
+from django.db import models, transaction
+from django.db.models import Sum
+from django.db.models.signals import post_delete, post_save
 from django.dispatch import receiver
 
 
@@ -20,7 +22,7 @@ class Producto(models.Model):
     TIPOS_PRODUCTO = [
         ('comercial', 'Comercial'),
         ('interno', 'Interno'),
-        ('ambos', 'Comercial e Interno')
+        ('ambos', 'Comercial e Interno'),
     ]
 
     ESTADOS = [
@@ -28,119 +30,116 @@ class Producto(models.Model):
         ('inactivo', 'Inactivo'),
     ]
 
-    descripcion = models.CharField(
-        max_length=100
-    )
+    descripcion = models.CharField(max_length=100)
 
     categoria = models.CharField(
         max_length=30,
-        choices=CATEGORIAS
+        choices=CATEGORIAS,
     )
 
     tipo_producto = models.CharField(
         max_length=20,
-        choices=TIPOS_PRODUCTO
+        choices=TIPOS_PRODUCTO,
     )
 
     precio_compra_referencia = models.DecimalField(
         max_digits=10,
         decimal_places=2,
-        default=0
-    )  
+        default=0,
+    )
 
     precio_venta = models.DecimalField(
         max_digits=10,
         decimal_places=2,
-        default=0
+        default=0,
     )
 
-    stock_minimo = models.IntegerField(
-        default=0
-    )
+    stock_minimo = models.IntegerField(default=0)
 
     estado = models.CharField(
         max_length=20,
         choices=ESTADOS,
-        default='activo'
+        default='activo',
     )
 
     def __str__(self):
         return self.descripcion
+
 
 class Stock(models.Model):
 
     producto = models.OneToOneField(
         Producto,
         on_delete=models.CASCADE,
-        related_name='stock'
+        related_name='stock',
     )
 
-    cantidad_disponible = models.IntegerField(
-        default=0
-    )
+    cantidad_disponible = models.IntegerField(default=0)
 
-    ultima_actualizacion = models.DateTimeField(
-        auto_now=True
-    )
+    ultima_actualizacion = models.DateTimeField(auto_now=True)
 
     def __str__(self):
-        return f"{self.producto.descripcion} - {self.cantidad_disponible}"
+        return f'{self.producto.descripcion} - {self.cantidad_disponible}'
+
 
 class LoteStock(models.Model):
 
     producto = models.ForeignKey(
         Producto,
         on_delete=models.CASCADE,
-        related_name='lotes'
+        related_name='lotes',
     )
 
-    numero_lote = models.CharField(
-        max_length=100
-    )
+    numero_lote = models.CharField(max_length=100)
 
-    cantidad_disponible = models.IntegerField(
-        default=0
-    )
+    cantidad_disponible = models.IntegerField(default=0)
 
     fecha_vencimiento = models.DateField(
         blank=True,
-        null=True
+        null=True,
     )
 
     costo_unitario = models.DecimalField(
         max_digits=10,
         decimal_places=2,
-        default=0
+        default=0,
     )
 
-    fecha_ingreso = models.DateTimeField(
-        auto_now_add=True
-    )
+    fecha_ingreso = models.DateTimeField(auto_now_add=True)
 
-    ultima_actualizacion = models.DateTimeField(
-        auto_now=True
-    )
+    ultima_actualizacion = models.DateTimeField(auto_now=True)
 
     class Meta:
         constraints = [
             models.UniqueConstraint(
-                fields=[
-                    'producto',
-                    'numero_lote'
-                ],
-                name='lote_unico_por_producto'
+                fields=['producto', 'numero_lote'],
+                name='lote_unico_por_producto',
             )
         ]
-        ordering = [
-            'fecha_vencimiento',
-            'numero_lote'
-        ]
+        ordering = ['fecha_vencimiento', 'numero_lote']
+
+    def clean(self):
+        if self.cantidad_disponible < 0:
+            raise ValidationError(
+                'La cantidad disponible no puede ser negativa.'
+            )
+
+        if self.costo_unitario < 0:
+            raise ValidationError(
+                'El costo unitario no puede ser negativo.'
+            )
+
+    def save(self, *args, **kwargs):
+        self.full_clean()
+        super().save(*args, **kwargs)
 
     def __str__(self):
         return (
-            f"{self.producto.descripcion} - "
-            f"Lote {self.numero_lote}"
+            f'{self.producto.descripcion} - '
+            f'Lote {self.numero_lote}'
         )
+
+
 class MovimientoStock(models.Model):
 
     TIPOS_MOVIMIENTO = [
@@ -158,106 +157,156 @@ class MovimientoStock(models.Model):
         ('ajuste_manual', 'Ajuste manual'),
     ]
 
-
     producto = models.ForeignKey(
         Producto,
         on_delete=models.CASCADE,
-        related_name='movimientos'
+        related_name='movimientos',
+    )
+
+    lote = models.ForeignKey(
+        LoteStock,
+        on_delete=models.PROTECT,
+        related_name='movimientos',
+        blank=True,
+        null=True,
     )
 
     tipo_movimiento = models.CharField(
         max_length=20,
-        choices=TIPOS_MOVIMIENTO
+        choices=TIPOS_MOVIMIENTO,
     )
 
     motivo = models.CharField(
         max_length=30,
-        choices=MOTIVOS
+        choices=MOTIVOS,
     )
 
     cantidad = models.IntegerField()
 
-    fecha_movimiento = models.DateTimeField(
-        auto_now_add=True
-    )
+    fecha_movimiento = models.DateTimeField(auto_now_add=True)
 
     def clean(self):
+        if self.cantidad <= 0:
+            raise ValidationError(
+                'La cantidad del movimiento debe ser mayor que cero.'
+            )
 
-        if self.tipo_movimiento == 'salida':
+        if self.lote_id and self.lote.producto_id != self.producto_id:
+            raise ValidationError(
+                'El lote seleccionado no pertenece al producto.'
+            )
 
-            stock_actual = self.producto.stock.cantidad_disponible
+        if self.tipo_movimiento != 'salida':
+            return
 
-            if self.cantidad > stock_actual:
+        if self.lote_id:
+            stock_actual = self.lote.cantidad_disponible
+        else:
+            stock, _ = Stock.objects.get_or_create(
+                producto=self.producto,
+            )
+            stock_actual = stock.cantidad_disponible
 
-                from django.core.exceptions import ValidationError
+        if self.cantidad > stock_actual:
+            raise ValidationError(
+                'No hay stock suficiente para realizar esta salida.'
+            )
 
-                raise ValidationError(
-                    'No hay stock suficiente para realizar esta salida.'
-                )
+    def save(self, *args, **kwargs):
+        self.full_clean()
+        super().save(*args, **kwargs)
 
     def __str__(self):
         return (
-            f"{self.tipo_movimiento} - "
-            f"{self.producto.descripcion}"
+            f'{self.tipo_movimiento} - '
+            f'{self.producto.descripcion}'
         )
-    
+
+
 @receiver(post_save, sender=Producto)
 def crear_stock_automatico(sender, instance, created, **kwargs):
-
     if created:
-        Stock.objects.create(
+        Stock.objects.get_or_create(
             producto=instance,
-            cantidad_disponible=0
+            defaults={'cantidad_disponible': 0},
         )
+
+
+@receiver(post_save, sender=LoteStock)
+def actualizar_stock_desde_lotes(sender, instance, **kwargs):
+    if not Producto.objects.filter(pk=instance.producto_id).exists():
+        return
+
+    cantidad_total = (
+        LoteStock.objects
+        .filter(producto_id=instance.producto_id)
+        .aggregate(total=Sum('cantidad_disponible'))['total']
+        or 0
+    )
+
+    Stock.objects.update_or_create(
+        producto_id=instance.producto_id,
+        defaults={'cantidad_disponible': cantidad_total},
+    )
+
+
+@receiver(post_delete, sender=LoteStock)
+def actualizar_stock_al_eliminar_lote(sender, instance, **kwargs):
+    if not Producto.objects.filter(pk=instance.producto_id).exists():
+        return
+
+    cantidad_total = (
+        LoteStock.objects
+        .filter(producto_id=instance.producto_id)
+        .aggregate(total=Sum('cantidad_disponible'))['total']
+        or 0
+    )
+
+    Stock.objects.update_or_create(
+        producto_id=instance.producto_id,
+        defaults={'cantidad_disponible': cantidad_total},
+    )
+
 
 @receiver(post_save, sender=MovimientoStock)
 def actualizar_stock(sender, instance, created, **kwargs):
+    if not created:
+        return
 
-    if created:
+    if instance.lote_id:
+        with transaction.atomic():
+            lote = (
+                LoteStock.objects
+                .select_for_update()
+                .get(pk=instance.lote_id)
+            )
 
-        stock = instance.producto.stock
+            if instance.tipo_movimiento == 'entrada':
+                lote.cantidad_disponible += instance.cantidad
+            else:
+                if instance.cantidad > lote.cantidad_disponible:
+                    raise ValidationError(
+                        'No hay stock suficiente en el lote.'
+                    )
 
-        if instance.tipo_movimiento == 'entrada':
-            stock.cantidad_disponible += instance.cantidad
+                lote.cantidad_disponible -= instance.cantidad
 
-        elif instance.tipo_movimiento == 'salida':
-            stock.cantidad_disponible -= instance.cantidad
+            lote.save()
 
-        stock.save()
+        return
 
-@receiver(post_save, sender=LoteStock)
-def actualizar_stock_desde_lotes(
-    sender,
-    instance,
-    **kwargs
-):
     stock, _ = Stock.objects.get_or_create(
-        producto=instance.producto
+        producto=instance.producto,
     )
 
-    cantidad_total = sum(
-        lote.cantidad_disponible
-        for lote in instance.producto.lotes.all()
-    )
+    if instance.tipo_movimiento == 'entrada':
+        stock.cantidad_disponible += instance.cantidad
+    else:
+        if instance.cantidad > stock.cantidad_disponible:
+            raise ValidationError(
+                'No hay stock suficiente para realizar esta salida.'
+            )
 
-    stock.cantidad_disponible = cantidad_total
-    stock.save()
+        stock.cantidad_disponible -= instance.cantidad
 
-
-@receiver(models.signals.post_delete, sender=LoteStock)
-def actualizar_stock_al_eliminar_lote(
-    sender,
-    instance,
-    **kwargs
-):
-    stock, _ = Stock.objects.get_or_create(
-        producto=instance.producto
-    )
-
-    cantidad_total = sum(
-        lote.cantidad_disponible
-        for lote in instance.producto.lotes.all()
-    )
-
-    stock.cantidad_disponible = cantidad_total
     stock.save()
