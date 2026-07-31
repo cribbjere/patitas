@@ -68,6 +68,11 @@ function Consultas() {
     (cliente) => Number(cliente.id) === Number(clienteId)
   )
 }
+const obtenerServicio = (servicioId) => {
+  return servicios.find(
+    (servicio) => Number(servicio.id) === Number(servicioId)
+  )
+}
 const cargarDatos = async () => {
   try {
     setCargando(true)
@@ -110,6 +115,8 @@ const cargarDatos = async () => {
       proximoControl: consulta.proximo_control || '',
       precio: consulta.precio,
       turnoId: consulta.turno,
+      usuarioId: consulta.usuario,
+      usuarioNombre: consulta.usuario_nombre || '',
     }))
 
     setConsultas(consultasConvertidas)
@@ -128,6 +135,26 @@ const cargarDatos = async () => {
 useEffect(() => {
   cargarDatos()
 }, [])
+const turnosDisponibles = turnos.filter((turno) => {
+  if (!formulario.mascotaId) {
+    return false
+  }
+
+  const mascotaDelTurno =
+    turno.mascota?.id ??
+    turno.mascotaId ??
+    turno.mascota
+
+  const perteneceAMascota =
+    Number(mascotaDelTurno) === Number(formulario.mascotaId)
+
+  const estaPendiente = turno.estado === 'pendiente'
+
+  const esTurnoActual =
+    Number(turno.id) === Number(formulario.turnoId)
+
+  return perteneceAMascota && (estaPendiente || esTurnoActual)
+})
   const consultasFiltradas = consultas.filter((consulta) => {
     const mascota = obtenerMascota(consulta.mascotaId)
     const cliente = obtenerClienteDeMascota(consulta.mascotaId)
@@ -151,7 +178,16 @@ useEffect(() => {
         (consulta) => consulta.mascotaId === consultaSeleccionada.mascotaId
       )
     : []
+  const servicioDetalle = consultaSeleccionada
+  ? obtenerServicio(consultaSeleccionada.servicioId)
+  : null
 
+const turnoDetalle = consultaSeleccionada
+  ? turnos.find(
+      (turno) =>
+        Number(turno.id) === Number(consultaSeleccionada.turnoId)
+    )
+  : null
   const abrirNuevaConsulta = () => {
     setFormulario(consultaVacia)
     setConsultaSeleccionada(null)
@@ -169,6 +205,7 @@ useEffect(() => {
     setFormulario({
       mascotaId: consulta.mascotaId,
       servicioId: consulta.servicioId,
+      turnoId: consulta.turnoId || '',
       fecha: consulta.fecha,
       peso: consulta.peso,
       temperatura: consulta.temperatura,
@@ -191,16 +228,42 @@ useEffect(() => {
   }
 
   const manejarCambio = (e) => {
-    const { name, value } = e.target
+  const { name, value } = e.target
+
+  if (name === 'turnoId') {
+    const turnoSeleccionado = turnos.find(
+      (turno) => Number(turno.id) === Number(value)
+    )
 
     setFormulario({
       ...formulario,
-      [name]:
-      name === 'mascotaId' || name === 'servicioId'
-          ? (value ? Number(value) : '')
-          : value,
+      turnoId: value ? Number(value) : '',
+      fecha: turnoSeleccionado?.fecha || formulario.fecha,
     })
+
+    return
   }
+
+  if (name === 'mascotaId') {
+    setFormulario({
+      ...formulario,
+      mascotaId: value ? Number(value) : '',
+      turnoId: '',
+    })
+
+    return
+  }
+
+  setFormulario({
+    ...formulario,
+    [name]:
+      name === 'servicioId'
+        ? value
+          ? Number(value)
+          : ''
+        : value,
+  })
+}
 
   const guardarConsulta = async (e) => {
   e.preventDefault()
@@ -329,20 +392,24 @@ useEffect(() => {
           <div className="consultas-table-wrapper">
             <table className="consultas-table">
               <thead>
-                <tr>
-                  <th>Consulta</th>
-                  <th>Mascota</th>
-                  <th>Dueño</th>
-                  <th>Diagnóstico</th>
-                  <th>Tratamiento</th>
-                  <th>Acciones</th>
-                </tr>
-              </thead>
+  <tr>
+    <th>Consulta</th>
+    <th>Mascota</th>
+    <th>Dueño</th>
+    <th>Servicio</th>
+    <th>Estado</th>
+    <th>Precio</th>
+    <th>Diagnóstico</th>
+    <th>Tratamiento</th>
+    <th>Acciones</th>
+  </tr>
+</thead>
 
               <tbody>
                 {consultasFiltradas.map((consulta) => {
                   const mascota = obtenerMascota(consulta.mascotaId)
                   const cliente = obtenerClienteDeMascota(consulta.mascotaId)
+                  const servicio = obtenerServicio(consulta.servicioId)
 
                   return (
                     <tr key={consulta.id}>
@@ -363,13 +430,28 @@ useEffect(() => {
 
                       <td>{mascota?.nombre}</td>
 
-                      <td>
-                        {cliente?.nombre} {cliente?.apellido}
-                      </td>
+                     <td>
+  {cliente?.nombre} {cliente?.apellido}
+</td>
 
-                      <td>{consulta.diagnostico}</td>
+<td>
+  {servicio?.descripcion || 'Sin servicio'}
+</td>
 
-                      <td>{consulta.tratamiento}</td>
+<td>
+  {consulta.estado}
+</td>
+
+<td>
+  {consulta.precio !== null &&
+  consulta.precio !== undefined
+    ? `$${Number(consulta.precio).toLocaleString('es-AR')}`
+    : 'Sin precio'}
+</td>
+
+<td>{consulta.diagnostico}</td>
+
+<td>{consulta.tratamiento}</td>
 
                       <td>
                         <div className="acciones">
@@ -404,7 +486,7 @@ useEffect(() => {
 
                 {consultasFiltradas.length === 0 && (
                   <tr>
-                    <td colSpan="6" className="sin-resultados">
+                    <td colSpan="9" className="sin-resultados">
                       No se encontraron consultas.
                     </td>
                   </tr>
@@ -450,6 +532,33 @@ useEffect(() => {
                       )
                     })}
                   </select>
+                  <label>Turno asociado</label>
+
+<select
+  name="turnoId"
+  value={formulario.turnoId}
+  onChange={manejarCambio}
+  disabled={!formulario.mascotaId}
+>
+  <option value="">
+    {formulario.mascotaId
+      ? 'Sin turno asociado'
+      : 'Primero seleccioná una mascota'}
+  </option>
+
+  {turnosDisponibles.map((turno) => (
+    <option key={turno.id} value={turno.id}>
+      {turno.fecha} - {turno.hora?.slice(0, 5)} -{' '}
+      {turno.motivo_consulta}
+    </option>
+  ))}
+</select>
+
+{formulario.mascotaId && turnosDisponibles.length === 0 && (
+  <small>
+    La mascota no tiene turnos pendientes disponibles.
+  </small>
+)}
                   <label>Servicio</label>
 
 <select
@@ -461,7 +570,7 @@ useEffect(() => {
 
   {servicios.map((servicio) => (
     <option key={servicio.id} value={servicio.id}>
-      {servicio.nombre} - ${servicio.precio}
+      {servicio.descripcion} - ${servicio.precio}
     </option>
   ))}
 </select>
@@ -543,60 +652,122 @@ useEffect(() => {
                 <p>Información clínica registrada</p>
 
                 <div className="consulta-detalle">
-                  <div>
-                    <span>Fecha</span>
-                    <strong>{consultaSeleccionada.fecha}</strong>
-                  </div>
+  <div>
+    <span>Fecha</span>
+    <strong>{consultaSeleccionada.fecha}</strong>
+  </div>
 
-                  <div>
-                    <span>Mascota</span>
-                    <strong>
-                      {obtenerMascota(consultaSeleccionada.mascotaId)?.nombre}
-                    </strong>
-                  </div>
+  <div>
+    <span>Mascota</span>
+    <strong>
+      {obtenerMascota(consultaSeleccionada.mascotaId)?.nombre}
+    </strong>
+  </div>
 
-                  <div>
-                    <span>Dueño</span>
-                    <strong>
-                      {
-                        obtenerClienteDeMascota(consultaSeleccionada.mascotaId)
-                          ?.nombre
-                      }{' '}
-                      {
-                        obtenerClienteDeMascota(consultaSeleccionada.mascotaId)
-                          ?.apellido
-                      }
-                    </strong>
-                  </div>
+  <div>
+    <span>Dueño</span>
+    <strong>
+      {
+        obtenerClienteDeMascota(consultaSeleccionada.mascotaId)
+          ?.nombre
+      }{' '}
+      {
+        obtenerClienteDeMascota(consultaSeleccionada.mascotaId)
+          ?.apellido
+      }
+    </strong>
+  </div>
 
-                  <div>
-                    <span>Peso</span>
-                    <strong>{consultaSeleccionada.peso} kg</strong>
-                  </div>
+  <div>
+    <span>Turno asociado</span>
+    <strong>
+      {turnoDetalle
+        ? `${turnoDetalle.fecha} - ${turnoDetalle.hora?.slice(
+            0,
+            5
+          )} - ${turnoDetalle.motivo_consulta}`
+        : 'Sin turno asociado'}
+    </strong>
+  </div>
 
-                  <div>
-                    <span>Temperatura</span>
-                    <strong>{consultaSeleccionada.temperatura} °C</strong>
-                  </div>
+  <div>
+    <span>Servicio</span>
+    <strong>
+      {servicioDetalle?.descripcion || 'Sin servicio'}
+    </strong>
+  </div>
 
-                  <div>
-                    <span>Diagnóstico</span>
-                    <strong>{consultaSeleccionada.diagnostico}</strong>
-                  </div>
+  <div>
+    <span>Estado</span>
+    <strong>{consultaSeleccionada.estado}</strong>
+  </div>
 
-                  <div>
-                    <span>Tratamiento</span>
-                    <strong>{consultaSeleccionada.tratamiento}</strong>
-                  </div>
+  <div>
+    <span>Precio</span>
+    <strong>
+      {consultaSeleccionada.precio !== null &&
+      consultaSeleccionada.precio !== undefined
+        ? `$${Number(
+            consultaSeleccionada.precio
+          ).toLocaleString('es-AR')}`
+        : 'Sin precio'}
+    </strong>
+  </div>
 
-                  <div>
-                    <span>Observaciones</span>
-                    <strong>
-                      {consultaSeleccionada.observaciones || 'Sin observaciones'}
-                    </strong>
-                  </div>
-                </div>
+  <div>
+    <span>Próximo control</span>
+    <strong>
+      {consultaSeleccionada.proximoControl ||
+        'Sin próximo control'}
+    </strong>
+  </div>
 
+  <div>
+    <span>Usuario</span>
+    <strong>
+      {consultaSeleccionada.usuarioNombre ||
+        (consultaSeleccionada.usuarioId
+          ? `Usuario #${consultaSeleccionada.usuarioId}`
+          : 'Sin usuario')}
+    </strong>
+  </div>
+
+  <div>
+    <span>Peso</span>
+    <strong>
+      {consultaSeleccionada.peso !== ''
+        ? `${consultaSeleccionada.peso} kg`
+        : 'Sin registrar'}
+    </strong>
+  </div>
+
+  <div>
+    <span>Temperatura</span>
+    <strong>
+      {consultaSeleccionada.temperatura !== ''
+        ? `${consultaSeleccionada.temperatura} °C`
+        : 'Sin registrar'}
+    </strong>
+  </div>
+
+  <div>
+    <span>Diagnóstico</span>
+    <strong>{consultaSeleccionada.diagnostico}</strong>
+  </div>
+
+  <div>
+    <span>Tratamiento</span>
+    <strong>{consultaSeleccionada.tratamiento}</strong>
+  </div>
+
+  <div>
+    <span>Observaciones</span>
+    <strong>
+      {consultaSeleccionada.observaciones ||
+        'Sin observaciones'}
+    </strong>
+  </div>
+</div>
                 <div className="historial-clinico">
                   <h3>Historial clínico</h3>
 

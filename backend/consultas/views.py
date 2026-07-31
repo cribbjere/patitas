@@ -31,6 +31,9 @@ class VacunacionViewSet(viewsets.ModelViewSet):
     queryset = Vacunacion.objects.all()
     serializer_class = VacunacionSerializer
 
+    def perform_create(self, serializer):
+        serializer.save(usuario=self.request.user)
+
 
 class CirugiaViewSet(viewsets.ModelViewSet):
     queryset = Cirugia.objects.all()
