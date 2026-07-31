@@ -6,6 +6,7 @@ import Clientes from '../pages/Clientes'
 import Mascotas from '../pages/Mascotas'
 import Turnos from '../pages/Turnos'
 import Consultas from '../pages/Consultas'
+import Cirugias from '../pages/Cirugias'
 import Vacunaciones from '../pages/Vacunaciones'
 import Higiene from '../pages/Higiene'
 import Productos from '../pages/Productos'
@@ -31,6 +32,7 @@ function AppRouter() {
     <Route path="/turnos" element={<Turnos />} />
     <Route path="/consultas" element={<Consultas />} />
     <Route path="/vacunaciones" element={<Vacunaciones />} />
+    <Route path="/cirugias" element={<Cirugias />} />
     <Route path="/higiene" element={<Higiene />} />
     <Route path="/productos" element={<Productos />} />
     <Route path="/stock" element={<Stock />} />

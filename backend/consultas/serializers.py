@@ -40,14 +40,30 @@ class VacunacionSerializer(serializers.ModelSerializer):
 
 
 class CirugiaSerializer(serializers.ModelSerializer):
+    usuario_nombre = serializers.CharField(
+        source='usuario.username',
+        read_only=True
+    )
 
     class Meta:
         model = Cirugia
         fields = '__all__'
+        read_only_fields = [
+            'usuario',
+            'precio'
+        ]
 
 
 class ServicioHigieneSerializer(serializers.ModelSerializer):
+    usuario_nombre = serializers.CharField(
+        source='usuario.username',
+        read_only=True
+    )
 
     class Meta:
         model = ServicioHigiene
         fields = '__all__'
+        read_only_fields = [
+            'usuario',
+            'precio'
+        ]

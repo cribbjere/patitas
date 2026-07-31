@@ -13,6 +13,7 @@ export const PERMISOS_POR_ROL = {
     'reportes',
     'usuarios',
     'configuracion',
+    'cirugias',
   ],
 
   recepcionista: [
@@ -22,6 +23,7 @@ export const PERMISOS_POR_ROL = {
     'turnos',
     'consultas',
     'vacunaciones',
+    'cirugias',
   ],
 
   veterinario: [
@@ -31,6 +33,7 @@ export const PERMISOS_POR_ROL = {
     'turnos',
     'consultas',
     'vacunaciones',
+    'cirugias',
   ],
 
   ventas: [

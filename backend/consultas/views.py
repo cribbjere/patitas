@@ -39,11 +39,16 @@ class CirugiaViewSet(viewsets.ModelViewSet):
     queryset = Cirugia.objects.all()
     serializer_class = CirugiaSerializer
 
+    def perform_create(self, serializer):
+        serializer.save(usuario=self.request.user)
+
 
 class ServicioHigieneViewSet(viewsets.ModelViewSet):
     queryset = ServicioHigiene.objects.all()
     serializer_class = ServicioHigieneSerializer
 
+    def perform_create(self, serializer):
+        serializer.save(usuario=self.request.user)
 def comprobante_higiene_pdf(request, higiene_id):
 
     registro = get_object_or_404(ServicioHigiene, id=higiene_id)

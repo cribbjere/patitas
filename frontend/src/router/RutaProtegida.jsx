@@ -18,6 +18,7 @@ function RutaProtegida() {
     turnos: 'turnos',
     consultas: 'consultas',
     vacunaciones: 'vacunaciones',
+    cirugias: 'cirugias',
     higiene: 'higiene',
     productos: 'productos',
     stock: 'stock',

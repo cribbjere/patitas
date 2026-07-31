@@ -1,0 +1,396 @@
+.cirugias-page {
+  width: 100%;
+  font-family: 'Poppins', sans-serif;
+}
+
+.cirugias-header {
+  display: flex;
+  justify-content: space-between;
+  align-items: center;
+  gap: 18px;
+  margin-bottom: 20px;
+}
+
+.cirugias-header h1 {
+  margin: 0;
+  color: #1d2944;
+  font-size: 30px;
+  font-weight: 800;
+}
+
+.cirugias-header p {
+  margin: 6px 0 0;
+  color: #7c849d;
+  font-size: 17px;
+  font-weight: 400;
+}
+
+.btn-nueva-cirugia {
+  height: 42px;
+  border: none;
+  border-radius: 8px;
+  padding: 0 18px;
+  background-color: #2f8c80;
+  color: white;
+  font-size: 15px;
+  font-weight: 600;
+  display: flex;
+  align-items: center;
+  gap: 9px;
+  cursor: pointer;
+}
+
+.btn-nueva-cirugia:hover {
+  background-color: #28776d;
+}
+
+.cirugias-content {
+  display: grid;
+  grid-template-columns: minmax(0, 1fr) 390px;
+  gap: 18px;
+  align-items: start;
+}
+
+.cirugias-main-card,
+.cirugias-side-card {
+  background-color: white;
+  border-radius: 12px;
+  box-shadow: 0 8px 18px rgba(0, 0, 0, 0.12);
+}
+
+.cirugias-main-card {
+  padding: 18px;
+  min-width: 0;
+}
+
+.cirugias-toolbar {
+  display: flex;
+  justify-content: space-between;
+  align-items: center;
+  gap: 14px;
+  margin-bottom: 16px;
+}
+
+.cirugias-search {
+  flex: 1;
+  height: 42px;
+  border: 1px solid #d7d7d7;
+  border-radius: 8px;
+  padding: 0 13px;
+  display: flex;
+  align-items: center;
+  gap: 10px;
+  color: #7c849d;
+}
+
+.cirugias-search input {
+  width: 100%;
+  border: none;
+  outline: none;
+  color: #1d2944;
+  font-size: 14px;
+  font-family: 'Poppins', sans-serif;
+}
+
+.cirugias-search input::placeholder {
+  color: #9fa8b8;
+}
+
+.cirugias-total {
+  color: #7c849d;
+  font-size: 14px;
+  font-weight: 500;
+  white-space: nowrap;
+}
+
+.cirugias-table-wrapper {
+  width: 100%;
+  overflow-x: auto;
+}
+
+.cirugias-table {
+  width: 100%;
+  min-width: 1120px;
+  border-collapse: collapse;
+}
+
+.cirugias-table th {
+  color: #7c849d;
+  font-size: 14px;
+  font-weight: 600;
+  text-align: left;
+  padding: 12px 8px;
+  border-bottom: 1px solid #eeeeee;
+  white-space: nowrap;
+}
+
+.cirugias-table td {
+  color: #1d2944;
+  font-size: 14px;
+  font-weight: 400;
+  padding: 14px 8px;
+  border-bottom: 1px solid #eeeeee;
+  vertical-align: middle;
+}
+
+.cirugia-nombre {
+  display: flex;
+  align-items: center;
+  gap: 11px;
+}
+
+.cirugia-icono {
+  width: 38px;
+  height: 38px;
+  min-width: 38px;
+  border-radius: 50%;
+  background-color: #dcefe9;
+  color: #2f8c80;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  font-size: 18px;
+}
+
+.cirugia-nombre strong {
+  display: block;
+  color: #1d2944;
+  font-size: 14px;
+  font-weight: 700;
+}
+
+.cirugia-nombre small {
+  display: block;
+  color: #7c849d;
+  margin-top: 3px;
+  font-size: 12px;
+  font-weight: 400;
+  max-width: 230px;
+  white-space: nowrap;
+  overflow: hidden;
+  text-overflow: ellipsis;
+}
+
+.estado-cirugia {
+  display: inline-flex;
+  align-items: center;
+  justify-content: center;
+  min-width: 92px;
+  height: 28px;
+  border-radius: 8px;
+  padding: 0 10px;
+  font-size: 13px;
+  font-weight: 700;
+}
+
+.estado-cirugia.programada {
+  background-color: #fff1c7;
+  color: #9a6700;
+}
+
+.estado-cirugia.realizada {
+  background-color: #cde8bd;
+  color: #2f8c80;
+}
+
+.estado-cirugia.cancelada {
+  background-color: #ffd7d7;
+  color: #b42318;
+}
+
+.cirugias-page .acciones {
+  display: flex;
+  align-items: center;
+  gap: 7px;
+}
+
+.cirugias-page .btn-accion {
+  width: 32px;
+  height: 32px;
+  border: none;
+  border-radius: 7px;
+  color: white;
+  display: flex;
+  justify-content: center;
+  align-items: center;
+  cursor: pointer;
+}
+
+.cirugias-page .btn-accion.ver {
+  background-color: #2f8c80;
+}
+
+.cirugias-page .btn-accion.editar {
+  background-color: #1d2944;
+}
+
+.cirugias-page .btn-accion.eliminar {
+  background-color: #b42318;
+}
+
+.cirugias-page .sin-resultados {
+  text-align: center;
+  color: #7c849d !important;
+  padding: 28px !important;
+}
+
+.cirugias-side-card {
+  position: relative;
+  padding: 22px;
+}
+
+.cirugias-page .btn-cerrar {
+  position: absolute;
+  top: 14px;
+  right: 14px;
+  border: none;
+  background: transparent;
+  color: #7c849d;
+  font-size: 20px;
+  cursor: pointer;
+}
+
+.cirugias-side-card h2 {
+  margin: 0;
+  color: #1d2944;
+  font-size: 24px;
+  font-weight: 800;
+}
+
+.cirugias-side-card > p {
+  margin: 6px 0 20px;
+  color: #7c849d;
+  font-size: 14px;
+  font-weight: 400;
+}
+
+.cirugia-form {
+  display: flex;
+  flex-direction: column;
+}
+
+.cirugia-form label {
+  color: #1d2944;
+  font-size: 14px;
+  font-weight: 500;
+  margin-bottom: 7px;
+}
+
+.cirugia-form input,
+.cirugia-form select {
+  height: 40px;
+  border: 1px solid #d7d7d7;
+  border-radius: 8px;
+  padding: 0 12px;
+  margin-bottom: 14px;
+  outline: none;
+  color: #1d2944;
+  font-size: 14px;
+  font-family: 'Poppins', sans-serif;
+  background-color: white;
+}
+
+.cirugia-form select:disabled {
+  background-color: #f4f5f7;
+  color: #9fa8b8;
+  cursor: not-allowed;
+}
+
+.cirugia-form textarea {
+  min-height: 78px;
+  border: 1px solid #d7d7d7;
+  border-radius: 8px;
+  padding: 10px 12px;
+  margin-bottom: 18px;
+  outline: none;
+  resize: vertical;
+  color: #1d2944;
+  font-size: 14px;
+  font-family: 'Poppins', sans-serif;
+}
+
+.cirugia-form input:focus,
+.cirugia-form select:focus,
+.cirugia-form textarea:focus {
+  border-color: #2f8c80;
+}
+
+.cirugia-form .sin-turnos {
+  display: block;
+  margin-top: -8px;
+  margin-bottom: 14px;
+  color: #7c849d;
+  font-size: 12px;
+}
+
+.cirugias-page .btn-guardar,
+.cirugias-page .btn-editar-detalle {
+  height: 42px;
+  border: none;
+  border-radius: 8px;
+  background-color: #2f8c80;
+  color: white;
+  font-size: 15px;
+  font-weight: 600;
+  display: flex;
+  justify-content: center;
+  align-items: center;
+  gap: 9px;
+  cursor: pointer;
+}
+
+.cirugias-page .btn-guardar:hover,
+.cirugias-page .btn-editar-detalle:hover {
+  background-color: #28776d;
+}
+
+.cirugia-detalle {
+  display: flex;
+  flex-direction: column;
+  gap: 16px;
+  margin-bottom: 22px;
+}
+
+.cirugia-detalle div {
+  padding-bottom: 12px;
+  border-bottom: 1px solid #eeeeee;
+}
+
+.cirugia-detalle span {
+  display: block;
+  color: #7c849d;
+  font-size: 13px;
+  font-weight: 400;
+  margin-bottom: 4px;
+}
+
+.cirugia-detalle strong {
+  display: block;
+  color: #1d2944;
+  font-size: 15px;
+  font-weight: 700;
+  overflow-wrap: anywhere;
+}
+
+@media (max-width: 1100px) {
+  .cirugias-content {
+    grid-template-columns: 1fr;
+  }
+}
+
+@media (max-width: 768px) {
+  .cirugias-header {
+    flex-direction: column;
+    align-items: flex-start;
+  }
+
+  .btn-nueva-cirugia {
+    width: 100%;
+    justify-content: center;
+  }
+
+  .cirugias-toolbar {
+    flex-direction: column;
+    align-items: stretch;
+  }
+}

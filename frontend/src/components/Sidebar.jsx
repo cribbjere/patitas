@@ -69,6 +69,12 @@ function Sidebar() {
             <span>Vacunaciones</span>
           </NavLink>
         )}
+        {tienePermiso('cirugias') && (
+  <NavLink to="/cirugias" className="sidebar-link">
+    <FaStethoscope className="sidebar-icon" />
+    <span>Cirugías</span>
+  </NavLink>
+)}
 
         {tienePermiso('higiene') && (
           <NavLink to="/higiene" className="sidebar-link">
