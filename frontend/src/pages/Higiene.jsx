@@ -1,4 +1,4 @@
-import { useMemo, useState } from 'react'
+import { useEffect, useMemo, useState } from 'react'
 import {
   FaMagnifyingGlass,
   FaPlus,
@@ -11,48 +11,25 @@ import {
   FaTriangleExclamation,
 } from 'react-icons/fa6'
 
+import { obtenerClientes } from '../services/clientesService'
+import { obtenerMascotas } from '../services/mascotasService'
+import { obtenerTurnos } from '../services/turnosService'
+import { obtenerServicios } from '../services/serviciosService'
 import {
-  clientes as clientesIniciales,
-  mascotas as mascotasIniciales,
-} from '../data/mockData'
+  obtenerServiciosHigiene,
+  crearServicioHigiene,
+  editarServicioHigiene,
+  eliminarServicioHigiene,
+} from '../services/higieneService'
 
 import './Higiene.css'
 
-const serviciosIniciales = [
-  {
-    id: 1,
-    mascotaId: 1,
-    fecha: '2026-06-18',
-    tipoServicio: 'Baño completo',
-    importe: 12000,
-    estado: 'Realizado',
-    observaciones: 'Se realizó baño con shampoo neutro.',
-  },
-  {
-    id: 2,
-    mascotaId: 2,
-    fecha: '2026-06-19',
-    tipoServicio: 'Corte de uñas',
-    importe: 5000,
-    estado: 'Realizado',
-    observaciones: 'Mascota tranquila durante el servicio.',
-  },
-  {
-    id: 3,
-    mascotaId: 3,
-    fecha: '2026-06-25',
-    tipoServicio: 'Baño y cepillado',
-    importe: 15000,
-    estado: 'Pendiente',
-    observaciones: 'Servicio programado.',
-  },
-]
 
 const servicioVacio = {
   mascotaId: '',
+  servicioId: '',
+  turnoId: '',
   fecha: '',
-  tipoServicio: '',
-  importe: '',
   estado: 'Pendiente',
   observaciones: '',
 }
@@ -64,9 +41,11 @@ const formatoDinero = new Intl.NumberFormat('es-AR', {
 })
 
 function Higiene() {
-  const [clientes] = useState(clientesIniciales)
-  const [mascotas] = useState(mascotasIniciales)
-  const [servicios, setServicios] = useState(serviciosIniciales)
+  const [clientes, setClientes] = useState([])
+const [mascotas, setMascotas] = useState([])
+const [catalogoServicios, setCatalogoServicios] = useState([])
+const [turnos, setTurnos] = useState([])
+const [servicios, setServicios] = useState([])
   const [busqueda, setBusqueda] = useState('')
   const [mostrarFormulario, setMostrarFormulario] = useState(false)
   const [servicioSeleccionado, setServicioSeleccionado] = useState(null)
@@ -75,17 +54,119 @@ function Higiene() {
   const [errorFormulario, setErrorFormulario] = useState('')
 
   const obtenerMascota = (mascotaId) => {
-    return mascotas.find((mascota) => mascota.id === Number(mascotaId))
-  }
-
+  return mascotas.find(
+    (mascota) => Number(mascota.id) === Number(mascotaId)
+  )
+}
   const obtenerClienteDeMascota = (mascotaId) => {
-    const mascota = obtenerMascota(mascotaId)
+  const mascota = obtenerMascota(mascotaId)
 
-    if (!mascota) return null
+  if (!mascota) return null
 
-    return clientes.find((cliente) => cliente.id === mascota.clienteId)
+  const clienteId =
+    mascota.clienteId ??
+    mascota.cliente?.id ??
+    mascota.cliente
+
+  return clientes.find(
+    (cliente) => Number(cliente.id) === Number(clienteId)
+  )
+}
+const cargarDatos = async () => {
+  try {
+    const [
+      clientesAPI,
+      mascotasAPI,
+      catalogoServiciosAPI,
+      turnosAPI,
+      serviciosHigieneAPI,
+    ] = await Promise.all([
+      obtenerClientes(),
+      obtenerMascotas(),
+      obtenerServicios(),
+      obtenerTurnos(),
+      obtenerServiciosHigiene(),
+    ])
+
+    setClientes(clientesAPI)
+    setMascotas(mascotasAPI)
+    setCatalogoServicios(catalogoServiciosAPI)
+    setTurnos(turnosAPI)
+
+    const serviciosConvertidos = serviciosHigieneAPI.map(
+      (servicioHigiene) => {
+        const servicioEncontrado = catalogoServiciosAPI.find(
+          (servicio) =>
+            Number(servicio.id) ===
+            Number(servicioHigiene.servicio)
+        )
+
+        return {
+          id: servicioHigiene.id,
+          mascotaId: servicioHigiene.mascota,
+          servicioId: servicioHigiene.servicio,
+          turnoId: servicioHigiene.turno,
+          fecha: servicioHigiene.fecha,
+          tipoServicio:
+            servicioEncontrado?.descripcion ||
+            'Servicio sin descripción',
+          importe: servicioHigiene.precio,
+          estado:
+            servicioHigiene.estado === 'realizado'
+              ? 'Realizado'
+              : servicioHigiene.estado === 'cancelado'
+                ? 'Cancelado'
+                : 'Pendiente',
+          observaciones: servicioHigiene.observaciones || '',
+          usuarioId: servicioHigiene.usuario,
+          usuarioNombre:
+            servicioHigiene.usuario_nombre || '',
+        }
+      }
+    )
+
+    setServicios(serviciosConvertidos)
+  } catch (error) {
+    console.error(
+      'Error al cargar los servicios de higiene:',
+      error
+    )
+
+    window.alert(
+      error.response?.data?.detail ||
+        'No se pudieron cargar los servicios de higiene.'
+    )
+  }
+}
+
+useEffect(() => {
+  cargarDatos()
+}, [])
+const turnosDisponibles = turnos.filter((turno) => {
+  if (!formulario.mascotaId) {
+    return false
   }
 
+  const mascotaDelTurno =
+    turno.mascota?.id ??
+    turno.mascotaId ??
+    turno.mascota
+
+  const perteneceAMascota =
+    Number(mascotaDelTurno) === Number(formulario.mascotaId)
+
+  const estaPendiente = turno.estado === 'pendiente'
+
+  const esTurnoActual =
+    Number(turno.id) === Number(formulario.turnoId)
+
+  return perteneceAMascota && (estaPendiente || esTurnoActual)
+})
+
+const servicioFormulario = catalogoServicios.find(
+  (servicio) =>
+    Number(servicio.id) === Number(formulario.servicioId)
+)
   const formatearFecha = (fecha) => {
     if (!fecha) return 'Sin fecha'
 
@@ -135,20 +216,20 @@ function Higiene() {
   }
 
   const abrirEditarServicio = (servicio) => {
-    setFormulario({
-      mascotaId: servicio.mascotaId,
-      fecha: servicio.fecha,
-      tipoServicio: servicio.tipoServicio,
-      importe: servicio.importe,
-      estado: servicio.estado,
-      observaciones: servicio.observaciones,
-    })
+  setFormulario({
+    mascotaId: servicio.mascotaId,
+    servicioId: servicio.servicioId,
+    turnoId: servicio.turnoId || '',
+    fecha: servicio.fecha,
+    estado: servicio.estado,
+    observaciones: servicio.observaciones,
+  })
 
-    setServicioSeleccionado(servicio)
-    setModoEdicion(true)
-    setErrorFormulario('')
-    setMostrarFormulario(true)
-  }
+  setServicioSeleccionado(servicio)
+  setModoEdicion(true)
+  setErrorFormulario('')
+  setMostrarFormulario(true)
+}
 
   const cerrarPanel = () => {
     setFormulario(servicioVacio)
@@ -158,98 +239,145 @@ function Higiene() {
     setErrorFormulario('')
   }
 
-  const manejarCambio = (e) => {
-    const { name, value } = e.target
+ const manejarCambio = (e) => {
+  const { name, value } = e.target
+
+  if (name === 'turnoId') {
+    const turnoSeleccionado = turnos.find(
+      (turno) => Number(turno.id) === Number(value)
+    )
 
     setFormulario((formularioActual) => ({
       ...formularioActual,
-      [name]: name === 'mascotaId' && value ? Number(value) : value,
+      turnoId: value ? Number(value) : '',
+      fecha: turnoSeleccionado?.fecha || formularioActual.fecha,
     }))
-
-    if (errorFormulario) {
-      setErrorFormulario('')
-    }
+  } else if (name === 'mascotaId') {
+    setFormulario((formularioActual) => ({
+      ...formularioActual,
+      mascotaId: value ? Number(value) : '',
+      turnoId: '',
+    }))
+  } else if (name === 'servicioId') {
+    setFormulario((formularioActual) => ({
+      ...formularioActual,
+      servicioId: value ? Number(value) : '',
+    }))
+  } else {
+    setFormulario((formularioActual) => ({
+      ...formularioActual,
+      [name]: value,
+    }))
   }
 
-  const validarFormulario = () => {
-    if (!formulario.mascotaId) {
-      return 'Seleccioná una mascota.'
-    }
+  if (errorFormulario) {
+    setErrorFormulario('')
+  }
+}
 
-    if (!formulario.tipoServicio) {
-      return 'Seleccioná el tipo de servicio.'
-    }
-
-    if (!formulario.fecha) {
-      return 'Ingresá la fecha del servicio.'
-    }
-
-    if (!formulario.importe || Number(formulario.importe) <= 0) {
-      return 'Ingresá un importe válido mayor que cero.'
-    }
-
-    if (!formulario.estado) {
-      return 'Seleccioná el estado del servicio.'
-    }
-
-    return ''
+ const validarFormulario = () => {
+  if (!formulario.mascotaId) {
+    return 'Seleccioná una mascota.'
   }
 
-  const guardarServicio = (e) => {
-    e.preventDefault()
+  if (!formulario.servicioId) {
+    return 'Seleccioná el tipo de servicio.'
+  }
 
-    const error = validarFormulario()
+  if (!formulario.fecha) {
+    return 'Ingresá la fecha del servicio.'
+  }
 
-    if (error) {
-      setErrorFormulario(error)
-      return
-    }
+  if (!formulario.estado) {
+    return 'Seleccioná el estado del servicio.'
+  }
 
-    const datosServicio = {
-      mascotaId: Number(formulario.mascotaId),
-      fecha: formulario.fecha,
-      tipoServicio: formulario.tipoServicio,
-      importe: Number(formulario.importe),
-      estado: formulario.estado,
-      observaciones: formulario.observaciones.trim(),
-    }
+  return ''
+}
+
+  const guardarServicio = async (e) => {
+  e.preventDefault()
+
+  const error = validarFormulario()
+
+  if (error) {
+    setErrorFormulario(error)
+    return
+  }
+
+  const datos = {
+    mascota: formulario.mascotaId,
+    servicio: formulario.servicioId,
+    turno: formulario.turnoId || null,
+    fecha: formulario.fecha,
+    estado: formulario.estado.toLowerCase(),
+    observaciones: formulario.observaciones.trim(),
+  }
+
+  try {
+    setErrorFormulario('')
 
     if (modoEdicion && servicioSeleccionado) {
-      setServicios((serviciosActuales) =>
-        serviciosActuales.map((servicio) =>
-          servicio.id === servicioSeleccionado.id
-            ? { ...servicio, ...datosServicio }
-            : servicio
-        )
+      await editarServicioHigiene(
+        servicioSeleccionado.id,
+        datos
       )
     } else {
-      setServicios((serviciosActuales) => [
-        ...serviciosActuales,
-        {
-          id: Date.now(),
-          ...datosServicio,
-        },
-      ])
+      await crearServicioHigiene(datos)
     }
 
+    await cargarDatos()
     cerrarPanel()
-  }
-
-  const eliminarServicio = (id) => {
-    const confirmar = window.confirm(
-      '¿Seguro que querés eliminar este servicio de higiene?'
+  } catch (errorGuardar) {
+    console.error(
+      'Error al guardar el servicio de higiene:',
+      errorGuardar
     )
 
-    if (!confirmar) return
+    setErrorFormulario(
+      errorGuardar.response?.data?.detail ||
+        Object.values(errorGuardar.response?.data || {})
+          .flat()
+          .join(' ') ||
+        'No se pudo guardar el servicio de higiene.'
+    )
+  }
+}
+
+  const eliminarServicio = async (id) => {
+  const confirmar = window.confirm(
+    '¿Seguro que querés eliminar este servicio de higiene?'
+  )
+
+  if (!confirmar) return
+
+  try {
+    await eliminarServicioHigiene(id)
 
     setServicios((serviciosActuales) =>
-      serviciosActuales.filter((servicio) => servicio.id !== id)
+      serviciosActuales.filter(
+        (servicio) => servicio.id !== id
+      )
     )
 
     if (servicioSeleccionado?.id === id) {
       cerrarPanel()
     }
+  } catch (error) {
+    console.error(
+      'Error al eliminar el servicio de higiene:',
+      error
+    )
+
+    window.alert(
+      error.response?.data?.detail ||
+        Object.values(error.response?.data || {})
+          .flat()
+          .join(' ') ||
+        'No se pudo eliminar el servicio de higiene.'
+    )
   }
+}
 
   const mascotaSeleccionada = servicioSeleccionado
     ? obtenerMascota(servicioSeleccionado.mascotaId)
@@ -455,24 +583,54 @@ function Higiene() {
                       )
                     })}
                   </select>
+                  <label htmlFor="turnoId">Turno asociado</label>
 
-                  <label htmlFor="tipoServicio">Tipo de servicio</label>
-                  <select
-                    id="tipoServicio"
-                    name="tipoServicio"
-                    value={formulario.tipoServicio}
-                    onChange={manejarCambio}
-                  >
-                    <option value="">Seleccionar servicio</option>
-                    <option value="Baño completo">Baño completo</option>
-                    <option value="Corte de pelo">Corte de pelo</option>
-                    <option value="Corte de uñas">Corte de uñas</option>
-                    <option value="Baño y cepillado">Baño y cepillado</option>
-                    <option value="Limpieza de oídos">Limpieza de oídos</option>
-                    <option value="Peluquería completa">
-                      Peluquería completa
-                    </option>
-                  </select>
+<select
+  id="turnoId"
+  name="turnoId"
+  value={formulario.turnoId}
+  onChange={manejarCambio}
+  disabled={!formulario.mascotaId}
+>
+  <option value="">
+    {formulario.mascotaId
+      ? 'Sin turno asociado'
+      : 'Primero seleccioná una mascota'}
+  </option>
+
+  {turnosDisponibles.map((turno) => (
+    <option key={turno.id} value={turno.id}>
+      {turno.fecha}
+      {turno.hora ? ` - ${turno.hora.slice(0, 5)}` : ''}
+      {turno.motivo_consulta
+        ? ` - ${turno.motivo_consulta}`
+        : ''}
+    </option>
+  ))}
+</select>
+
+{formulario.mascotaId &&
+  turnosDisponibles.length === 0 && (
+    <small>
+      La mascota no tiene turnos pendientes disponibles.
+    </small>
+  )}
+                  <label htmlFor="servicioId">Tipo de servicio</label>
+
+<select
+  id="servicioId"
+  name="servicioId"
+  value={formulario.servicioId}
+  onChange={manejarCambio}
+>
+  <option value="">Seleccionar servicio</option>
+
+  {catalogoServicios.map((servicio) => (
+    <option key={servicio.id} value={servicio.id}>
+      {servicio.descripcion} - ${servicio.precio}
+    </option>
+  ))}
+</select>
 
                   <label htmlFor="fecha">Fecha</label>
                   <input
@@ -483,18 +641,19 @@ function Higiene() {
                     onChange={manejarCambio}
                   />
 
-                  <label htmlFor="importe">Importe</label>
-                  <input
-                    id="importe"
-                    type="number"
-                    name="importe"
-                    value={formulario.importe}
-                    onChange={manejarCambio}
-                    min="1"
-                    step="1"
-                    placeholder="Ejemplo: 12000"
-                  />
+                  <label htmlFor="importe">Importe automático</label>
 
+<input
+  id="importe"
+  type="text"
+  value={
+    servicioFormulario
+      ? formatoDinero.format(Number(servicioFormulario.precio))
+      : ''
+  }
+  readOnly
+  placeholder="Se completa al elegir el servicio"
+/>
                   <label htmlFor="estado">Estado</label>
                   <select
                     id="estado"
