@@ -3,13 +3,15 @@ from rest_framework import viewsets
 from .models import (
     Producto,
     Stock,
-    MovimientoStock
+    LoteStock,
+    MovimientoStock,
 )
 
 from .serializers import (
     ProductoSerializer,
     StockSerializer,
-    MovimientoStockSerializer
+    LoteStockSerializer,
+    MovimientoStockSerializer,
 )
 
 
@@ -21,6 +23,14 @@ class ProductoViewSet(viewsets.ModelViewSet):
 class StockViewSet(viewsets.ModelViewSet):
     queryset = Stock.objects.all()
     serializer_class = StockSerializer
+
+
+class LoteStockViewSet(viewsets.ModelViewSet):
+    queryset = LoteStock.objects.select_related(
+        'producto'
+    ).all()
+
+    serializer_class = LoteStockSerializer
 
 
 class MovimientoStockViewSet(viewsets.ModelViewSet):

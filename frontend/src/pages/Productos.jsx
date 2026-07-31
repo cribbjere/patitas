@@ -1,4 +1,4 @@
-import { useMemo, useState } from 'react'
+import { useEffect, useMemo, useState } from 'react'
 import {
   FaMagnifyingGlass,
   FaPlus,
@@ -10,18 +10,23 @@ import {
   FaBoxOpen,
   FaTriangleExclamation,
 } from 'react-icons/fa6'
-
-import { productos as productosIniciales } from '../data/mockData'
+import {
+  obtenerProductos,
+  crearProducto,
+  editarProducto,
+  eliminarProducto as eliminarProductoAPI,
+} from '../services/productosService'
 import { soloNumerosDecimales } from '../utils/validaciones'
+import { crearAlertaSistema } from '../utils/alertasSistema'
 import './Productos.css'
 
 const productoVacio = {
   descripcion: '',
   categoria: '',
-  tipoProducto: 'Producto',
-  condicionVenta: 'Venta libre',
-  laboratorio: '',
-  precio: '',
+  tipoProducto: 'comercial',
+  precioCompraReferencia: '',
+  precioVenta: '',
+  stockMinimo: '0',
   estado: true,
 }
 
@@ -30,9 +35,122 @@ const formatoDinero = new Intl.NumberFormat('es-AR', {
   currency: 'ARS',
   maximumFractionDigits: 0,
 })
+function obtenerDiasParaVencer(fechaVencimiento) {
+  if (!fechaVencimiento) {
+    return null
+  }
 
+  const hoy = new Date()
+  hoy.setHours(0, 0, 0, 0)
+
+  const vencimiento = new Date(
+    `${fechaVencimiento}T00:00:00`
+  )
+  vencimiento.setHours(0, 0, 0, 0)
+
+  if (Number.isNaN(vencimiento.getTime())) {
+    return null
+  }
+
+  const diferencia = vencimiento - hoy
+
+  return Math.ceil(
+    diferencia / (1000 * 60 * 60 * 24)
+  )
+}
+function obtenerAlertaVencimiento(producto) {
+  const lotes = Array.isArray(producto.lotes)
+    ? producto.lotes
+    : []
+
+  const hoy = new Date()
+  hoy.setHours(0, 0, 0, 0)
+
+  const lotesConStock = lotes
+    .map((lote) => {
+      const cantidad = Number(
+        lote.cantidadDisponible ??
+          lote.cantidad_disponible ??
+          0
+      )
+
+      const fechaVencimiento =
+        lote.fechaVencimiento ??
+        lote.fecha_vencimiento ??
+        ''
+
+      const numeroLote =
+        lote.numeroLote ??
+        lote.numero_lote ??
+        'Sin número'
+
+      if (cantidad <= 0 || !fechaVencimiento) {
+        return null
+      }
+
+      const fecha = new Date(
+        `${fechaVencimiento}T00:00:00`
+      )
+
+      if (Number.isNaN(fecha.getTime())) {
+        return null
+      }
+
+      const dias = Math.ceil(
+        (fecha - hoy) / (1000 * 60 * 60 * 24)
+      )
+
+      return {
+        numeroLote,
+        fechaVencimiento,
+        dias,
+      }
+    })
+    .filter(Boolean)
+    .sort((a, b) => a.dias - b.dias)
+
+  if (lotesConStock.length === 0) {
+    return {
+      texto: 'Sin vencimiento',
+      detalle: 'Sin lotes con stock',
+      clase: 'sin-alerta',
+    }
+  }
+
+  const loteMasUrgente = lotesConStock[0]
+
+  if (loteMasUrgente.dias < 0) {
+    return {
+      texto: 'Vencido',
+      detalle: `Lote ${loteMasUrgente.numeroLote}`,
+      clase: 'vencido',
+    }
+  }
+
+  if (loteMasUrgente.dias === 0) {
+    return {
+      texto: 'Vence hoy',
+      detalle: `Lote ${loteMasUrgente.numeroLote}`,
+      clase: 'vence-hoy',
+    }
+  }
+
+  if (loteMasUrgente.dias <= 30) {
+    return {
+      texto: `Vence en ${loteMasUrgente.dias} días`,
+      detalle: `Lote ${loteMasUrgente.numeroLote}`,
+      clase: 'proximo',
+    }
+  }
+
+  return {
+    texto: 'Sin alerta',
+    detalle: `Próximo: ${loteMasUrgente.fechaVencimiento}`,
+    clase: 'sin-alerta',
+  }
+}
 function Productos() {
-  const [productos, setProductos] = useState(productosIniciales)
+  const [productos, setProductos] = useState([])
   const [busqueda, setBusqueda] = useState('')
   const [mostrarFormulario, setMostrarFormulario] = useState(false)
   const [productoSeleccionado, setProductoSeleccionado] = useState(null)
@@ -40,17 +158,132 @@ function Productos() {
   const [formulario, setFormulario] = useState(productoVacio)
   const [errorFormulario, setErrorFormulario] = useState('')
 
+  const cargarProductos = async () => {
+  try {
+    const productosAPI = await obtenerProductos()
+
+    const productosConvertidos = productosAPI.map((producto) => ({
+  id: producto.id,
+  descripcion: producto.descripcion,
+  categoria: producto.categoria,
+  tipoProducto: producto.tipo_producto,
+  precioCompraReferencia:
+    producto.precio_compra_referencia ?? '',
+  precioVenta: producto.precio_venta ?? '',
+  stockMinimo: producto.stock_minimo ?? 0,
+  stockActual: producto.stock_actual ?? 0,
+  lotes: producto.lotes || [],
+  estado: producto.estado === 'activo',
+}))
+
+    setProductos(productosConvertidos)
+  } catch (error) {
+    console.error('Error al cargar los productos:', error)
+
+    window.alert(
+      error.response?.data?.detail ||
+        'No se pudieron cargar los productos.'
+    )
+  }
+}
+
+useEffect(() => {
+  cargarProductos()
+}, [])
+useEffect(() => {
+  productos.forEach((producto) => {
+    const lotes = Array.isArray(producto.lotes)
+      ? producto.lotes
+      : []
+
+    lotes.forEach((lote) => {
+      const cantidad = Number(
+        lote.cantidadDisponible ??
+        lote.cantidad_disponible ??
+        0
+      )
+
+      const fechaVencimiento =
+        lote.fechaVencimiento ??
+        lote.fecha_vencimiento ??
+        ''
+
+      const numeroLote =
+        lote.numeroLote ??
+        lote.numero_lote ??
+        'Sin número'
+
+      if (cantidad <= 0 || !fechaVencimiento) {
+        return
+      }
+
+      const diasParaVencer =
+        obtenerDiasParaVencer(fechaVencimiento)
+
+      if (
+        diasParaVencer === null ||
+        diasParaVencer > 30
+      ) {
+        return
+      }
+
+      const loteVencido = diasParaVencer < 0
+      const venceHoy = diasParaVencer === 0
+
+      let titulo = ''
+      let mensaje = ''
+
+      if (loteVencido) {
+        titulo = 'Lote vencido'
+        mensaje =
+          `El lote ${numeroLote} del producto ` +
+          `${producto.descripcion} está vencido. ` +
+          'No debe venderse ni utilizarse.'
+      } else if (venceHoy) {
+        titulo = 'Lote vence hoy'
+        mensaje =
+          `El lote ${numeroLote} del producto ` +
+          `${producto.descripcion} vence hoy.`
+      } else {
+        titulo = 'Lote próximo a vencer'
+        mensaje =
+          `El lote ${numeroLote} del producto ` +
+          `${producto.descripcion} vence en ` +
+          `${diasParaVencer} días.`
+      }
+
+      crearAlertaSistema({
+        clave:
+          `lote-vencimiento-${producto.id}-` +
+          `${lote.id || numeroLote}-` +
+          `${loteVencido ? 'vencido' : 'proximo'}`,
+        titulo,
+        mensaje,
+        origen: 'Productos',
+        cliente: 'Control interno',
+        telefono: '',
+        mascota: producto.descripcion,
+      })
+    })
+  })
+}, [productos])
   const obtenerTipoProducto = (producto) => {
-    return producto.tipoProducto || producto.categoria || 'Producto'
+  if (producto.tipoProducto === 'comercial') {
+    return 'Comercial'
   }
 
-  const obtenerCondicionVenta = (producto) => {
-    return producto.condicionVenta || 'Venta libre'
+  if (producto.tipoProducto === 'interno') {
+    return 'Uso interno'
   }
 
-  const obtenerLaboratorio = (producto) => {
-    return producto.laboratorio || 'Sin especificar'
+  if (producto.tipoProducto === 'ambos') {
+    return 'Comercial e interno'
   }
+
+  return 'Sin especificar'
+}
+
+
 
   const productosFiltrados = useMemo(() => {
     const termino = busqueda.trim().toLowerCase()
@@ -60,9 +293,9 @@ function Productos() {
         ${producto.descripcion}
         ${producto.categoria}
         ${obtenerTipoProducto(producto)}
-        ${obtenerCondicionVenta(producto)}
-        ${obtenerLaboratorio(producto)}
-        ${producto.precio}
+        ${producto.precioCompraReferencia}
+        ${producto.precioVenta}
+        ${producto.stockMinimo}
         ${producto.estado ? 'activo' : 'inactivo'}
       `.toLowerCase()
 
@@ -85,22 +318,24 @@ function Productos() {
     setErrorFormulario('')
   }
 
-  const abrirEditarProducto = (producto) => {
-    setFormulario({
-      descripcion: producto.descripcion || '',
-      categoria: producto.categoria || '',
-      tipoProducto: producto.tipoProducto || producto.categoria || 'Producto',
-      condicionVenta: producto.condicionVenta || 'Venta libre',
-      laboratorio: producto.laboratorio || '',
-      precio: String(producto.precio ?? ''),
-      estado: Boolean(producto.estado),
-    })
+ const abrirEditarProducto = (producto) => {
+  setFormulario({
+    descripcion: producto.descripcion || '',
+    categoria: producto.categoria || '',
+    tipoProducto: producto.tipoProducto || 'comercial',
+    precioCompraReferencia: String(
+      producto.precioCompraReferencia ?? ''
+    ),
+    precioVenta: String(producto.precioVenta ?? ''),
+    stockMinimo: String(producto.stockMinimo ?? 0),
+    estado: Boolean(producto.estado),
+  })
 
-    setProductoSeleccionado(producto)
-    setModoEdicion(true)
-    setErrorFormulario('')
-    setMostrarFormulario(true)
-  }
+  setProductoSeleccionado(producto)
+  setModoEdicion(true)
+  setErrorFormulario('')
+  setMostrarFormulario(true)
+}
 
   const cerrarPanel = () => {
     setFormulario(productoVacio)
@@ -111,159 +346,145 @@ function Productos() {
   }
 
   const manejarCambio = (e) => {
-    const { name, value, type, checked } = e.target
+  const { name, value, type, checked } = e.target
 
-    if (name === 'tipoProducto') {
-      let nuevaCategoria = formulario.categoria
-      let nuevaCondicion = formulario.condicionVenta
+  let nuevoValor = value
 
-      if (value === 'Producto') {
-        nuevaCondicion = 'Venta libre'
-      }
-
-      if (value === 'Medicamento') {
-        nuevaCategoria = 'Medicamento'
-        nuevaCondicion = 'Uso veterinario'
-      }
-
-      if (value === 'Vacuna') {
-        nuevaCategoria = 'Vacuna'
-        nuevaCondicion = 'Requiere receta'
-      }
-
-      setFormulario((formularioActual) => ({
-        ...formularioActual,
-        tipoProducto: value,
-        categoria: nuevaCategoria,
-        condicionVenta: nuevaCondicion,
-      }))
-
-      if (errorFormulario) setErrorFormulario('')
-      return
-    }
-
-    let nuevoValor = value
-
-    if (name === 'precio') {
-      nuevoValor = soloNumerosDecimales(value)
-    }
-
-    setFormulario((formularioActual) => ({
-      ...formularioActual,
-      [name]: type === 'checkbox' ? checked : nuevoValor,
-    }))
-
-    if (errorFormulario) setErrorFormulario('')
+  if (
+    name === 'precioCompraReferencia' ||
+    name === 'precioVenta'
+  ) {
+    nuevoValor = soloNumerosDecimales(value)
   }
 
+  if (name === 'stockMinimo') {
+    nuevoValor = value.replace(/\D/g, '')
+  }
+
+  setFormulario((formularioActual) => ({
+    ...formularioActual,
+    [name]: type === 'checkbox' ? checked : nuevoValor,
+  }))
+
+  if (errorFormulario) {
+    setErrorFormulario('')
+  }
+}
   const validarFormulario = () => {
-    if (!formulario.descripcion.trim()) {
-      return 'Ingresá la descripción del producto.'
-    }
-
-    if (!formulario.categoria) {
-      return 'Seleccioná una categoría.'
-    }
-
-    if (!formulario.tipoProducto) {
-      return 'Seleccioná el tipo de producto.'
-    }
-
-    if (!formulario.condicionVenta) {
-      return 'Seleccioná la condición de venta.'
-    }
-
-    if (!formulario.precio || Number(formulario.precio) <= 0) {
-      return 'Ingresá un precio válido mayor que cero.'
-    }
-
-    if (
-      (formulario.tipoProducto === 'Medicamento' ||
-        formulario.tipoProducto === 'Vacuna') &&
-      !formulario.laboratorio.trim()
-    ) {
-      return 'Para medicamentos y vacunas se debe indicar laboratorio o marca.'
-    }
-
-    return ''
+  if (!formulario.descripcion.trim()) {
+    return 'Ingresá la descripción del producto.'
   }
 
-  const guardarProducto = (e) => {
-    e.preventDefault()
+  if (!formulario.categoria) {
+    return 'Seleccioná una categoría.'
+  }
 
-    const error = validarFormulario()
+  if (!formulario.tipoProducto) {
+    return 'Seleccioná el tipo de producto.'
+  }
 
-    if (error) {
-      setErrorFormulario(error)
-      return
-    }
+  if (
+    !formulario.precioVenta ||
+    Number(formulario.precioVenta) <= 0
+  ) {
+    return 'Ingresá un precio de venta mayor que cero.'
+  }
 
-    const datosProducto = {
-      descripcion: formulario.descripcion.trim(),
-      categoria: formulario.categoria,
-      tipoProducto: formulario.tipoProducto,
-      condicionVenta: formulario.condicionVenta,
-      laboratorio: formulario.laboratorio.trim(),
-      precio: Number(formulario.precio),
-      estado: formulario.estado,
-    }
+  if (
+    formulario.precioCompraReferencia &&
+    Number(formulario.precioCompraReferencia) < 0
+  ) {
+    return 'El precio de compra no puede ser negativo.'
+  }
+
+  if (
+    formulario.stockMinimo &&
+    Number(formulario.stockMinimo) < 0
+  ) {
+    return 'El stock mínimo no puede ser negativo.'
+  }
+
+  return ''
+}
+  const guardarProducto = async (e) => {
+  e.preventDefault()
+
+  const error = validarFormulario()
+
+  if (error) {
+    setErrorFormulario(error)
+    return
+  }
+
+  const datos = {
+    descripcion: formulario.descripcion.trim(),
+    categoria: formulario.categoria,
+    tipo_producto: formulario.tipoProducto,
+    precio_compra_referencia:
+      formulario.precioCompraReferencia || 0,
+    precio_venta: formulario.precioVenta,
+    stock_minimo: formulario.stockMinimo || 0,
+    estado: formulario.estado ? 'activo' : 'inactivo',
+  }
+
+  try {
+    setErrorFormulario('')
 
     if (modoEdicion && productoSeleccionado) {
-      setProductos((productosActuales) =>
-        productosActuales.map((producto) =>
-          producto.id === productoSeleccionado.id
-            ? { ...producto, ...datosProducto }
-            : producto
-        )
-      )
+      await editarProducto(productoSeleccionado.id, datos)
     } else {
-      setProductos((productosActuales) => [
-        ...productosActuales,
-        {
-          id: Date.now(),
-          ...datosProducto,
-        },
-      ])
+      await crearProducto(datos)
     }
 
+    await cargarProductos()
     cerrarPanel()
-  }
-
-  const eliminarProducto = (id) => {
-    const confirmar = window.confirm(
-      '¿Seguro que querés eliminar este producto?'
+  } catch (errorGuardar) {
+    console.error(
+      'Error al guardar el producto:',
+      errorGuardar
     )
 
-    if (!confirmar) return
+    setErrorFormulario(
+      errorGuardar.response?.data?.detail ||
+        Object.values(errorGuardar.response?.data || {})
+          .flat()
+          .join(' ') ||
+        'No se pudo guardar el producto.'
+    )
+  }
+}
+
+  const eliminarProducto = async (id) => {
+  const confirmar = window.confirm(
+    '¿Seguro que querés eliminar este producto?'
+  )
+
+  if (!confirmar) return
+
+  try {
+    await eliminarProductoAPI(id)
 
     setProductos((productosActuales) =>
-      productosActuales.filter((producto) => producto.id !== id)
+      productosActuales.filter(
+        (producto) => producto.id !== id
+      )
     )
 
     if (productoSeleccionado?.id === id) {
       cerrarPanel()
     }
+  } catch (error) {
+    console.error('Error al eliminar el producto:', error)
+
+    window.alert(
+      error.response?.data?.detail ||
+        Object.values(error.response?.data || {})
+          .flat()
+          .join(' ') ||
+        'No se pudo eliminar el producto. Puede estar asociado a movimientos de stock o ventas.'
+    )
   }
-
-  const obtenerClaseCondicion = (producto) => {
-    const condicion = obtenerCondicionVenta(producto)
-
-    if (condicion === 'Requiere receta') {
-      return 'condicion-producto receta'
-    }
-
-    if (condicion === 'Uso veterinario') {
-      return 'condicion-producto veterinario'
-    }
-
-    return 'condicion-producto libre'
-  }
-
-  const productoRestringido = (producto) => {
-    const condicion = obtenerCondicionVenta(producto)
-
-    return condicion === 'Requiere receta' || condicion === 'Uso veterinario'
-  }
+}
 
   return (
     <section className="productos-page">
@@ -309,19 +530,26 @@ function Productos() {
             <table className="productos-table">
               <thead>
                 <tr>
-                  <th>Producto</th>
-                  <th>Categoría</th>
-                  <th>Tipo</th>
-                  <th>Condición</th>
-                  <th>Precio</th>
-                  <th>Estado</th>
-                  <th>Acciones</th>
-                </tr>
+  <th>Producto</th>
+  <th>Categoría</th>
+  <th>Tipo</th>
+  <th>Precio compra</th>
+  <th>Precio venta</th>
+  <th>Stock mínimo</th>
+  <th>Vencimiento</th>
+  <th>Estado</th>
+  <th>Acciones</th>
+</tr>
               </thead>
 
               <tbody>
-                {productosFiltrados.map((producto) => (
-                  <tr key={producto.id}>
+                
+                {productosFiltrados.map((producto) => {
+  const alertaVencimiento =
+    obtenerAlertaVencimiento(producto)
+
+  return (
+    <tr key={producto.id}>
                     <td>
                       <div className="producto-nombre">
                         <div className="producto-icono">
@@ -330,9 +558,7 @@ function Productos() {
 
                         <div>
                           <strong>{producto.descripcion}</strong>
-                          <small>
-                            {obtenerLaboratorio(producto)} · ID {producto.id}
-                          </small>
+                          <small>ID {producto.id}</small>
                         </div>
                       </div>
                     </td>
@@ -346,13 +572,29 @@ function Productos() {
                     </td>
 
                     <td>
-                      <span className={obtenerClaseCondicion(producto)}>
-                        {obtenerCondicionVenta(producto)}
-                      </span>
-                    </td>
+  {formatoDinero.format(
+    Number(producto.precioCompraReferencia || 0)
+  )}
+</td>
 
-                    <td>{formatoDinero.format(producto.precio)}</td>
+<td>
+  {formatoDinero.format(
+    Number(producto.precioVenta || 0)
+  )}
+</td>
 
+<td>{producto.stockMinimo}</td>
+<td>
+  <div className="vencimiento-producto">
+    <span
+      className={`alerta-vencimiento ${alertaVencimiento.clase}`}
+    >
+      {alertaVencimiento.texto}
+    </span>
+
+    <small>{alertaVencimiento.detalle}</small>
+  </div>
+</td>
                     <td>
                       <span
                         className={
@@ -399,11 +641,12 @@ function Productos() {
                       </div>
                     </td>
                   </tr>
-                ))}
+                )
+              })}
 
                 {productosFiltrados.length === 0 && (
                   <tr>
-                    <td colSpan="7" className="sin-resultados">
+                    <td colSpan="9" className="sin-resultados">
                       No se encontraron productos.
                     </td>
                   </tr>
@@ -470,63 +713,58 @@ function Productos() {
                   </select>
 
                   <label htmlFor="tipoProducto">Tipo de producto</label>
-                  <select
-                    id="tipoProducto"
-                    name="tipoProducto"
-                    value={formulario.tipoProducto}
-                    onChange={manejarCambio}
-                  >
-                    <option value="Producto">Producto</option>
-                    <option value="Medicamento">Medicamento</option>
-                    <option value="Vacuna">Vacuna</option>
-                  </select>
 
-                  <label htmlFor="condicionVenta">Condición de venta</label>
-                  <select
-                    id="condicionVenta"
-                    name="condicionVenta"
-                    value={formulario.condicionVenta}
-                    onChange={manejarCambio}
-                  >
-                    <option value="Venta libre">Venta libre</option>
-                    <option value="Uso veterinario">Uso veterinario</option>
-                    <option value="Requiere receta">Requiere receta</option>
-                  </select>
+<select
+  id="tipoProducto"
+  name="tipoProducto"
+  value={formulario.tipoProducto}
+  onChange={manejarCambio}
+>
+  <option value="comercial">Comercial</option>
+  <option value="interno">Uso interno</option>
+  <option value="ambos">Comercial e interno</option>
+</select>
 
-                  <label htmlFor="laboratorio">Laboratorio / Marca</label>
-                  <input
-                    id="laboratorio"
-                    type="text"
-                    name="laboratorio"
-                    value={formulario.laboratorio}
-                    onChange={manejarCambio}
-                    placeholder="Ej: LabVet, VitalCan, Holliday"
-                  />
+                
+                  <label htmlFor="precioCompraReferencia">
+  Precio de compra de referencia
+</label>
 
-                  <label htmlFor="precio">Precio</label>
-                  <input
-                    id="precio"
-                    type="text"
-                    inputMode="decimal"
-                    name="precio"
-                    value={formulario.precio}
-                    onChange={manejarCambio}
-                    placeholder="Ej: 12500"
-                  />
+<input
+  id="precioCompraReferencia"
+  type="text"
+  inputMode="decimal"
+  name="precioCompraReferencia"
+  value={formulario.precioCompraReferencia}
+  onChange={manejarCambio}
+  placeholder="Ej: 8000"
+/>
 
-                  {(formulario.condicionVenta === 'Requiere receta' ||
-                    formulario.condicionVenta === 'Uso veterinario') && (
-                    <div className="aviso-producto-restringido">
-                      <FaTriangleExclamation />
-                      <div>
-                        <strong>Producto con control de venta</strong>
-                        <span>
-                          En ventas se deberá controlar autorización o indicación
-                          veterinaria.
-                        </span>
-                      </div>
-                    </div>
-                  )}
+<label htmlFor="precioVenta">Precio de venta</label>
+
+<input
+  id="precioVenta"
+  type="text"
+  inputMode="decimal"
+  name="precioVenta"
+  value={formulario.precioVenta}
+  onChange={manejarCambio}
+  placeholder="Ej: 12500"
+/>
+
+<label htmlFor="stockMinimo">Stock mínimo</label>
+
+<input
+  id="stockMinimo"
+  type="number"
+  min="0"
+  step="1"
+  name="stockMinimo"
+  value={formulario.stockMinimo}
+  onChange={manejarCambio}
+  placeholder="Ej: 5"
+/>
+                  
 
                   <label className="checkbox-producto">
                     <input
@@ -568,23 +806,29 @@ function Productos() {
                   </div>
 
                   <div>
-                    <span>Condición de venta</span>
-                    <span className={obtenerClaseCondicion(productoSeleccionado)}>
-                      {obtenerCondicionVenta(productoSeleccionado)}
-                    </span>
-                  </div>
+  <span>Precio de compra de referencia</span>
+  <strong>
+    {formatoDinero.format(
+      Number(
+        productoSeleccionado.precioCompraReferencia || 0
+      )
+    )}
+  </strong>
+</div>
 
-                  <div>
-                    <span>Laboratorio / Marca</span>
-                    <strong>{obtenerLaboratorio(productoSeleccionado)}</strong>
-                  </div>
+<div>
+  <span>Precio de venta</span>
+  <strong>
+    {formatoDinero.format(
+      Number(productoSeleccionado.precioVenta || 0)
+    )}
+  </strong>
+</div>
 
-                  <div>
-                    <span>Precio</span>
-                    <strong>
-                      {formatoDinero.format(productoSeleccionado.precio)}
-                    </strong>
-                  </div>
+<div>
+  <span>Stock mínimo</span>
+  <strong>{productoSeleccionado.stockMinimo}</strong>
+</div>
 
                   <div>
                     <span>Estado</span>
@@ -600,17 +844,7 @@ function Productos() {
                   </div>
                 </div>
 
-                {productoRestringido(productoSeleccionado) && (
-                  <div className="aviso-producto-restringido">
-                    <FaTriangleExclamation />
-                    <div>
-                      <strong>Producto con control de venta</strong>
-                      <span>
-                        Este producto debe controlarse antes de venderse.
-                      </span>
-                    </div>
-                  </div>
-                )}
+                
 
                 <button
                   type="button"

@@ -86,6 +86,61 @@ class Stock(models.Model):
     def __str__(self):
         return f"{self.producto.descripcion} - {self.cantidad_disponible}"
 
+class LoteStock(models.Model):
+
+    producto = models.ForeignKey(
+        Producto,
+        on_delete=models.CASCADE,
+        related_name='lotes'
+    )
+
+    numero_lote = models.CharField(
+        max_length=100
+    )
+
+    cantidad_disponible = models.IntegerField(
+        default=0
+    )
+
+    fecha_vencimiento = models.DateField(
+        blank=True,
+        null=True
+    )
+
+    costo_unitario = models.DecimalField(
+        max_digits=10,
+        decimal_places=2,
+        default=0
+    )
+
+    fecha_ingreso = models.DateTimeField(
+        auto_now_add=True
+    )
+
+    ultima_actualizacion = models.DateTimeField(
+        auto_now=True
+    )
+
+    class Meta:
+        constraints = [
+            models.UniqueConstraint(
+                fields=[
+                    'producto',
+                    'numero_lote'
+                ],
+                name='lote_unico_por_producto'
+            )
+        ]
+        ordering = [
+            'fecha_vencimiento',
+            'numero_lote'
+        ]
+
+    def __str__(self):
+        return (
+            f"{self.producto.descripcion} - "
+            f"Lote {self.numero_lote}"
+        )
 class MovimientoStock(models.Model):
 
     TIPOS_MOVIMIENTO = [
@@ -169,3 +224,40 @@ def actualizar_stock(sender, instance, created, **kwargs):
             stock.cantidad_disponible -= instance.cantidad
 
         stock.save()
+
+@receiver(post_save, sender=LoteStock)
+def actualizar_stock_desde_lotes(
+    sender,
+    instance,
+    **kwargs
+):
+    stock, _ = Stock.objects.get_or_create(
+        producto=instance.producto
+    )
+
+    cantidad_total = sum(
+        lote.cantidad_disponible
+        for lote in instance.producto.lotes.all()
+    )
+
+    stock.cantidad_disponible = cantidad_total
+    stock.save()
+
+
+@receiver(models.signals.post_delete, sender=LoteStock)
+def actualizar_stock_al_eliminar_lote(
+    sender,
+    instance,
+    **kwargs
+):
+    stock, _ = Stock.objects.get_or_create(
+        producto=instance.producto
+    )
+
+    cantidad_total = sum(
+        lote.cantidad_disponible
+        for lote in instance.producto.lotes.all()
+    )
+
+    stock.cantidad_disponible = cantidad_total
+    stock.save()
