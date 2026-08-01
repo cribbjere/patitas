@@ -19,47 +19,26 @@ import {
   actualizarUsuario,
   eliminarUsuario as eliminarUsuarioApi,
 } from '../services/usuariosService'
+import { PERMISOS_POR_ROL } from '../utils/permisos'
 import './Usuarios.css'
 
-const permisosPorRol = {
-  administrador: [
-    'Dashboard',
-    'Clientes',
-    'Mascotas',
-    'Turnos',
-    'Consultas',
-    'Vacunaciones',
-    'Higiene',
-    'Productos',
-    'Stock',
-    'Ventas',
-    'Reportes',
-    'Usuarios',
-    'Configuración',
-  ],
-  recepcionista: [
-    'Dashboard',
-    'Clientes',
-    'Mascotas',
-    'Turnos',
-  ],
-  veterinario: [
-    'Dashboard',
-    'Mascotas',
-    'Consultas',
-    'Vacunaciones',
-  ],
-  ventas: [
-    'Dashboard',
-    'Productos',
-    'Stock',
-    'Ventas',
-  ],
-  higiene: [
-    'Dashboard',
-    'Mascotas',
-    'Higiene',
-  ],
+
+const nombresModulos = {
+  dashboard: 'Dashboard',
+  clientes: 'Clientes',
+  mascotas: 'Mascotas',
+  turnos: 'Turnos',
+  consultas: 'Consultas',
+  vacunaciones: 'Vacunaciones',
+  cirugias: 'Cirugías',
+  higiene: 'Higiene',
+  productos: 'Productos',
+  stock: 'Stock',
+  ventas: 'Ventas',
+  caja: 'Caja',
+  reportes: 'Reportes',
+  usuarios: 'Usuarios',
+  configuracion: 'Configuración',
 }
 
 const usuarioVacio = {
@@ -230,50 +209,67 @@ const cargarUsuarios = async () => {
   }
 
   const guardarUsuario = async (e) => {
-  e.preventDefault()
+    e.preventDefault()
 
-  if (!validarFormulario()) return
+    if (!validarFormulario()) return
 
-  const nombreCompleto = formulario.nombre.trim().split(' ')
+    const nombreCompleto = formulario.nombre.trim().split(' ')
 
-  const datosUsuario = {
-    username: formulario.usuario.trim(),
-    first_name: nombreCompleto[0] || '',
-    last_name: nombreCompleto.slice(1).join(' '),
-    password: 'Patitas123',
-    rol: formulario.rol.trim().toLowerCase(),
-    estado: formulario.estado ? 'activo' : 'inactivo',
-  }
-
-  try {
-    if (modoEdicion) {
-      await actualizarUsuario(usuarioSeleccionado.id, datosUsuario)
-
-      mostrarMensaje('Usuario actualizado correctamente.', 'exito')
-    } else {
-      await crearUsuario(datosUsuario)
-
-      mostrarMensaje(
-        'Usuario creado correctamente. Contraseña predeterminada: Patitas123',
-        'exito'
-      )
+    const datosUsuario = {
+      username: formulario.usuario.trim(),
+      first_name: nombreCompleto[0] || '',
+      last_name: nombreCompleto.slice(1).join(' '),
+      rol: formulario.rol.trim().toLowerCase(),
+      estado: formulario.estado ? 'activo' : 'inactivo',
     }
 
-    await cargarUsuarios()
-    cerrarPanel()
-  } catch (error) {
-  console.error('Error al guardar usuario:', error.response?.data)
+    if (!modoEdicion) {
+      datosUsuario.password = 'Patitas123'
+    }
 
-  mostrarMensaje(
-    error.response?.data
-      ? JSON.stringify(error.response.data)
-      : 'Ocurrió un error al guardar el usuario.'
-  )
-}
-}
+    try {
+      let mensajeExito = ''
+
+      if (modoEdicion) {
+        await actualizarUsuario(
+          usuarioSeleccionado.id,
+          datosUsuario
+        )
+
+        mensajeExito = 'Usuario actualizado correctamente.'
+      } else {
+        await crearUsuario(datosUsuario)
+
+        mensajeExito =
+          'Usuario creado correctamente. ' +
+          'Contraseña predeterminada: Patitas123'
+      }
+
+      await cargarUsuarios()
+      cerrarPanel()
+      mostrarMensaje(mensajeExito, 'exito')
+    } catch (error) {
+      console.error(
+        'Error al guardar usuario:',
+        error.response?.data
+      )
+
+      mostrarMensaje(
+        error.response?.data
+          ? JSON.stringify(error.response.data)
+          : 'Ocurrió un error al guardar el usuario.'
+      )
+    }
+  }
+
   const solicitarEliminarUsuario = (usuario) => {
-    if (usuario.rol === 'Administrador') {
-      mostrarMensaje('No se puede eliminar el usuario administrador principal.')
+    if (
+      usuario.rol?.trim().toLowerCase() ===
+      'administrador'
+    ) {
+      mostrarMensaje(
+        'No se puede eliminar el usuario administrador principal.'
+      )
       return
     }
 
@@ -309,10 +305,10 @@ const eliminarUsuario = async () => {
 }
 
   const permisosFormulario =
-  permisosPorRol[formulario.rol?.toLowerCase()] || []
+  PERMISOS_POR_ROL[formulario.rol?.toLowerCase()] || []
 
 const permisosSeleccionado =
-  permisosPorRol[usuarioSeleccionado?.rol?.toLowerCase()] || []
+  PERMISOS_POR_ROL[usuarioSeleccionado?.rol?.toLowerCase()] || []
   return (
     <section className="usuarios-page">
       <div className="usuarios-header">
@@ -407,7 +403,7 @@ const permisosSeleccionado =
 
                     <td>{usuario.usuario}</td>
                     <td>{usuario.rol}</td>
-                    <td>{permisosPorRol[usuario.rol?.toLowerCase()]?.length || 0} módulos</td>
+                    <td>{PERMISOS_POR_ROL[usuario.rol?.toLowerCase()]?.length || 0} módulos</td>
 
                     <td>
                       <span
@@ -552,11 +548,11 @@ const permisosSeleccionado =
                     }
                   >
                     <option value="">Seleccionar rol</option>
-                    <option value="Administrador">Administrador</option>
-                    <option value="Recepcionista">Recepcionista</option>
-                    <option value="Veterinario">Veterinario</option>
-                    <option value="Ventas">Ventas</option>
-                    <option value="Higiene">Higiene</option>
+                    <option value="administrador">Administrador</option>
+                    <option value="recepcionista">Recepcionista</option>
+                    <option value="veterinario">Veterinario</option>
+                    <option value="ventas">Ventas</option>
+                    <option value="higiene">Higiene</option>
                   </select>
                   {errores.rol && (
                     <span className="mensaje-campo" id="error-usuario-rol">
@@ -589,7 +585,9 @@ const permisosSeleccionado =
                       <h3>Permisos del rol</h3>
 
                       {permisosFormulario.map((permiso) => (
-                        <span key={permiso}>{permiso}</span>
+                        <span key={permiso}>
+                          {nombresModulos[permiso] || permiso}
+                        </span>
                       ))}
                     </div>
                   )}
@@ -633,7 +631,9 @@ const permisosSeleccionado =
                   <h3>Módulos permitidos</h3>
 
                   {permisosSeleccionado.map((permiso) => (
-                    <span key={permiso}>{permiso}</span>
+                    <span key={permiso}>
+                          {nombresModulos[permiso] || permiso}
+                        </span>
                   ))}
                 </div>
 

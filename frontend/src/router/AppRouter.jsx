@@ -12,6 +12,7 @@ import Higiene from '../pages/Higiene'
 import Productos from '../pages/Productos'
 import Stock from '../pages/Stock'
 import Ventas from '../pages/Ventas'
+import Caja from '../pages/Caja'
 import Reportes from '../pages/Reportes'
 import Usuarios from '../pages/Usuarios'
 import Configuracion from '../pages/Configuracion'
@@ -37,6 +38,7 @@ function AppRouter() {
     <Route path="/productos" element={<Productos />} />
     <Route path="/stock" element={<Stock />} />
     <Route path="/ventas" element={<Ventas />} />
+    <Route path="/caja" element={<Caja />} />
     <Route path="/reportes" element={<Reportes />} />
     <Route path="/usuarios" element={<Usuarios />} />
     <Route path="/configuracion" element={<Configuracion />} />

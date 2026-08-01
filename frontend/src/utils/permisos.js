@@ -10,6 +10,7 @@ export const PERMISOS_POR_ROL = {
     'productos',
     'stock',
     'ventas',
+    'caja',
     'reportes',
     'usuarios',
     'configuracion',
@@ -42,6 +43,7 @@ export const PERMISOS_POR_ROL = {
     'productos',
     'stock',
     'ventas',
+    'caja',
   ],
 
   higiene: [

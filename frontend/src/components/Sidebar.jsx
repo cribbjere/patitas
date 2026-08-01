@@ -103,6 +103,12 @@ function Sidebar() {
             <span>Ventas</span>
           </NavLink>
         )}
+        {tienePermiso('caja') && (
+  <NavLink to="/caja" className="sidebar-link">
+    <FaCashRegister className="sidebar-icon" />
+    <span>Caja</span>
+  </NavLink>
+)}
 
         {tienePermiso('reportes') && (
           <NavLink to="/reportes" className="sidebar-link">
