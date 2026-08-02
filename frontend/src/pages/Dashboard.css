@@ -215,3 +215,6 @@
 .dashboard-stat-card p {
     text-transform: capitalize;
 }
+.dashboard-content-grid.dashboard-una-columna {
+    grid-template-columns: minmax(0, 1fr);
+}

@@ -1,120 +1,282 @@
-from django.shortcuts import render
 from django.http import HttpResponse
 from django.shortcuts import get_object_or_404
+
 from rest_framework import viewsets
+from rest_framework.views import APIView
 
+from usuarios.permisos import TienePermisoModulo
+
+from .comprobantes import (
+    generar_comprobante_servicio_clinico,
+)
 from .models import (
-    Consulta,
-    Vacunacion,
     Cirugia,
-    ServicioHigiene
+    Consulta,
+    ServicioHigiene,
+    Vacunacion,
 )
-
 from .serializers import (
-    ConsultaSerializer,
-    VacunacionSerializer,
     CirugiaSerializer,
-    ServicioHigieneSerializer
+    ConsultaSerializer,
+    ServicioHigieneSerializer,
+    VacunacionSerializer,
 )
 
-from .comprobantes import generar_comprobante_servicio_clinico
 
 class ConsultaViewSet(viewsets.ModelViewSet):
-    queryset = Consulta.objects.all()
+    queryset = (
+        Consulta.objects
+        .select_related(
+            'mascota',
+            'mascota__cliente',
+            'servicio',
+            'turno',
+            'usuario',
+        )
+        .order_by(
+            '-fecha_consulta',
+            '-id',
+        )
+    )
+
     serializer_class = ConsultaSerializer
+    permission_classes = [TienePermisoModulo]
+    modulo_permiso = 'consultas'
 
     def perform_create(self, serializer):
-        serializer.save(usuario=self.request.user)
+        serializer.save(
+            usuario=self.request.user,
+        )
 
 
 class VacunacionViewSet(viewsets.ModelViewSet):
-    queryset = Vacunacion.objects.all()
+    queryset = (
+        Vacunacion.objects
+        .select_related(
+            'mascota',
+            'mascota__cliente',
+            'servicio',
+            'turno',
+            'usuario',
+        )
+        .order_by(
+            '-fecha_aplicacion',
+            '-id',
+        )
+    )
+
     serializer_class = VacunacionSerializer
+    permission_classes = [TienePermisoModulo]
+    modulo_permiso = 'vacunaciones'
 
     def perform_create(self, serializer):
-        serializer.save(usuario=self.request.user)
+        serializer.save(
+            usuario=self.request.user,
+        )
 
 
 class CirugiaViewSet(viewsets.ModelViewSet):
-    queryset = Cirugia.objects.all()
+    queryset = (
+        Cirugia.objects
+        .select_related(
+            'mascota',
+            'mascota__cliente',
+            'servicio',
+            'turno',
+            'usuario',
+        )
+        .order_by(
+            '-fecha',
+            '-id',
+        )
+    )
+
     serializer_class = CirugiaSerializer
+    permission_classes = [TienePermisoModulo]
+    modulo_permiso = 'cirugias'
 
     def perform_create(self, serializer):
-        serializer.save(usuario=self.request.user)
+        serializer.save(
+            usuario=self.request.user,
+        )
 
 
-class ServicioHigieneViewSet(viewsets.ModelViewSet):
-    queryset = ServicioHigiene.objects.all()
+class ServicioHigieneViewSet(
+    viewsets.ModelViewSet
+):
+    queryset = (
+        ServicioHigiene.objects
+        .select_related(
+            'mascota',
+            'mascota__cliente',
+            'servicio',
+            'turno',
+            'usuario',
+        )
+        .order_by(
+            '-fecha',
+            '-id',
+        )
+    )
+
     serializer_class = ServicioHigieneSerializer
+    permission_classes = [TienePermisoModulo]
+    modulo_permiso = 'higiene'
 
     def perform_create(self, serializer):
-        serializer.save(usuario=self.request.user)
-def comprobante_higiene_pdf(request, higiene_id):
-
-    registro = get_object_or_404(ServicioHigiene, id=higiene_id)
-
-    response = HttpResponse(content_type='application/pdf')
-    response['Content-Disposition'] = (
-        f'attachment; filename="higiene_{registro.id}.pdf"'
-    )
-
-    generar_comprobante_servicio_clinico(
-        "Comprobante de Servicio de Higiene",
-        registro,
-        response
-    )
-
-    return response
-
-def comprobante_consulta_pdf(request, consulta_id):
-
-    registro = get_object_or_404(Consulta, id=consulta_id)
-
-    response = HttpResponse(content_type='application/pdf')
-    response['Content-Disposition'] = (
-        f'attachment; filename="consulta_{registro.id}.pdf"'
-    )
-
-    generar_comprobante_servicio_clinico(
-        "Comprobante de Consulta",
-        registro,
-        response
-    )
-
-    return response
+        serializer.save(
+            usuario=self.request.user,
+        )
 
 
-def comprobante_vacunacion_pdf(request, vacunacion_id):
+class ComprobanteConsultaPDFView(APIView):
+    permission_classes = [TienePermisoModulo]
+    modulo_permiso = 'consultas'
 
-    registro = get_object_or_404(Vacunacion, id=vacunacion_id)
+    def get(self, request, consulta_id):
+        registro = get_object_or_404(
+            Consulta.objects.select_related(
+                'mascota',
+                'mascota__cliente',
+                'servicio',
+                'turno',
+                'usuario',
+            ),
+            id=consulta_id,
+        )
 
-    response = HttpResponse(content_type='application/pdf')
-    response['Content-Disposition'] = (
-        f'attachment; filename="vacunacion_{registro.id}.pdf"'
-    )
+        response = HttpResponse(
+            content_type='application/pdf',
+        )
 
-    generar_comprobante_servicio_clinico(
-        "Comprobante de Vacunación",
-        registro,
-        response
-    )
+        response['Content-Disposition'] = (
+            'attachment; '
+            f'filename="consulta_{registro.id}.pdf"'
+        )
 
-    return response
+        generar_comprobante_servicio_clinico(
+            'Comprobante de Consulta',
+            registro,
+            response,
+        )
+
+        return response
 
 
-def comprobante_cirugia_pdf(request, cirugia_id):
+class ComprobanteVacunacionPDFView(APIView):
+    permission_classes = [TienePermisoModulo]
+    modulo_permiso = 'vacunaciones'
 
-    registro = get_object_or_404(Cirugia, id=cirugia_id)
+    def get(self, request, vacunacion_id):
+        registro = get_object_or_404(
+            Vacunacion.objects.select_related(
+                'mascota',
+                'mascota__cliente',
+                'servicio',
+                'turno',
+                'usuario',
+            ),
+            id=vacunacion_id,
+        )
 
-    response = HttpResponse(content_type='application/pdf')
-    response['Content-Disposition'] = (
-        f'attachment; filename="cirugia_{registro.id}.pdf"'
-    )
+        response = HttpResponse(
+            content_type='application/pdf',
+        )
 
-    generar_comprobante_servicio_clinico(
-        "Comprobante de Cirugía",
-        registro,
-        response
-    )
+        response['Content-Disposition'] = (
+            'attachment; '
+            f'filename="vacunacion_{registro.id}.pdf"'
+        )
 
-    return response
+        generar_comprobante_servicio_clinico(
+            'Comprobante de Vacunación',
+            registro,
+            response,
+        )
+
+        return response
+
+
+class ComprobanteCirugiaPDFView(APIView):
+    permission_classes = [TienePermisoModulo]
+    modulo_permiso = 'cirugias'
+
+    def get(self, request, cirugia_id):
+        registro = get_object_or_404(
+            Cirugia.objects.select_related(
+                'mascota',
+                'mascota__cliente',
+                'servicio',
+                'turno',
+                'usuario',
+            ),
+            id=cirugia_id,
+        )
+
+        response = HttpResponse(
+            content_type='application/pdf',
+        )
+
+        response['Content-Disposition'] = (
+            'attachment; '
+            f'filename="cirugia_{registro.id}.pdf"'
+        )
+
+        generar_comprobante_servicio_clinico(
+            'Comprobante de Cirugía',
+            registro,
+            response,
+        )
+
+        return response
+
+
+class ComprobanteHigienePDFView(APIView):
+    permission_classes = [TienePermisoModulo]
+    modulo_permiso = 'higiene'
+
+    def get(self, request, higiene_id):
+        registro = get_object_or_404(
+            ServicioHigiene.objects.select_related(
+                'mascota',
+                'mascota__cliente',
+                'servicio',
+                'turno',
+                'usuario',
+            ),
+            id=higiene_id,
+        )
+
+        response = HttpResponse(
+            content_type='application/pdf',
+        )
+
+        response['Content-Disposition'] = (
+            'attachment; '
+            f'filename="higiene_{registro.id}.pdf"'
+        )
+
+        generar_comprobante_servicio_clinico(
+            'Comprobante de Servicio de Higiene',
+            registro,
+            response,
+        )
+
+        return response
+
+
+comprobante_consulta_pdf = (
+    ComprobanteConsultaPDFView.as_view()
+)
+
+comprobante_vacunacion_pdf = (
+    ComprobanteVacunacionPDFView.as_view()
+)
+
+comprobante_cirugia_pdf = (
+    ComprobanteCirugiaPDFView.as_view()
+)
+
+comprobante_higiene_pdf = (
+    ComprobanteHigienePDFView.as_view()
+)

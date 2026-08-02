@@ -25,6 +25,7 @@ import {
 } from '../services/cajaService'
 
 import { soloNumerosDecimales } from '../utils/validaciones'
+import { obtenerUsuarioGuardado } from '../utils/permisos'
 import './Caja.css'
 
 const movimientoVacio = {
@@ -115,6 +116,12 @@ function obtenerMensajeError(error, mensajePredeterminado) {
 }
 
 function Caja() {
+  const usuario = obtenerUsuarioGuardado()
+
+  const esAdministrador =
+    String(usuario?.rol || '')
+      .trim()
+      .toLowerCase() === 'administrador'
   const [movimientos, setMovimientos] = useState([])
   const [cierres, setCierres] = useState([])
   const [seccionActiva, setSeccionActiva] = useState('movimientos')
@@ -143,33 +150,46 @@ function Caja() {
     setMensaje(null)
   }
 
-  const cargarDatos = async () => {
+    const cargarDatos = async () => {
     try {
       setCargando(true)
 
-      const [respuestaMovimientos, respuestaCierres] = await Promise.all([
-        obtenerMovimientosCaja(),
-        obtenerCierresCaja(),
-      ])
+      const respuestaMovimientos =
+        await obtenerMovimientosCaja()
 
-      setMovimientos(normalizarLista(respuestaMovimientos))
-      setCierres(normalizarLista(respuestaCierres))
+      setMovimientos(
+        normalizarLista(respuestaMovimientos),
+      )
+
+      if (esAdministrador) {
+        const respuestaCierres =
+          await obtenerCierresCaja()
+
+        setCierres(
+          normalizarLista(respuestaCierres),
+        )
+      } else {
+        setCierres([])
+        setSeccionActiva('movimientos')
+        setMostrarFormularioCierre(false)
+        setCierreSeleccionado(null)
+      }
     } catch (error) {
-      console.error('Error al cargar la caja:', error)
+      console.error(
+        'Error al cargar la caja:',
+        error,
+      )
+
       mostrarMensaje(
         obtenerMensajeError(
           error,
-          'No se pudieron cargar los movimientos de caja.'
-        )
+          'No se pudieron cargar los movimientos de caja.',
+        ),
       )
     } finally {
       setCargando(false)
     }
   }
-
-  useEffect(() => {
-    cargarDatos()
-  }, [])
 
   const resumen = useMemo(() => {
     const ingresos = movimientos
@@ -261,6 +281,12 @@ function Caja() {
   }
 
   const abrirNuevoMovimiento = () => {
+    if (!esAdministrador) {
+      mostrarMensaje(
+        'Solo el administrador puede registrar movimientos manuales.',
+      )
+      return
+    }
     limpiarMensaje()
     setSeccionActiva('movimientos')
     setMovimientoSeleccionado(null)
@@ -271,6 +297,12 @@ function Caja() {
   }
 
   const abrirNuevoCierre = () => {
+    if (!esAdministrador) {
+      mostrarMensaje(
+        'Solo el administrador puede realizar cierres de caja.',
+      )
+      return
+    }
     limpiarMensaje()
     setSeccionActiva('cierres')
     setMovimientoSeleccionado(null)
@@ -334,6 +366,12 @@ function Caja() {
   const guardarMovimiento = async (evento) => {
     evento.preventDefault()
 
+    if (!esAdministrador) {
+      mostrarMensaje(
+        'No tenés permiso para registrar movimientos manuales.',
+      )
+      return
+    }
     if (!formularioMovimiento.descripcion.trim()) {
       mostrarMensaje('Ingresá una descripción para el movimiento.')
       return
@@ -370,7 +408,12 @@ function Caja() {
 
   const guardarCierre = async (evento) => {
     evento.preventDefault()
-
+    if (!esAdministrador) {
+      mostrarMensaje(
+        'No tenés permiso para realizar cierres.',
+      )
+      return
+    }
     if (
       formularioCierre.saldoInicial === '' ||
       Number(formularioCierre.saldoInicial) < 0
@@ -408,6 +451,12 @@ function Caja() {
   }
 
   const eliminarMovimiento = async (movimiento) => {
+    if (!esAdministrador) {
+      mostrarMensaje(
+        'Solo el administrador puede eliminar movimientos.',
+      )
+      return
+    }
     if (!movimientoPuedeEliminarse(movimiento)) {
       mostrarMensaje(
         'Los movimientos automáticos de ventas o servicios no se eliminan desde Caja.'
@@ -439,6 +488,12 @@ function Caja() {
   }
 
   const eliminarCierre = async (cierre) => {
+    if (!esAdministrador) {
+      mostrarMensaje(
+        'Solo el administrador puede eliminar cierres.',
+      )
+      return
+    }
     const confirmar = window.confirm(
       '¿Seguro que querés eliminar este cierre de caja?'
     )
@@ -482,25 +537,27 @@ function Caja() {
           <p>Ingresos, egresos, movimientos automáticos y cierres de caja</p>
         </div>
 
-        <div className="caja-header-acciones">
-          <button
-            type="button"
-            className="btn-nuevo-cierre"
-            onClick={abrirNuevoCierre}
-          >
-            <FaScaleBalanced />
-            Nuevo Cierre
-          </button>
+        {esAdministrador && (
+  <div className="caja-header-acciones">
+    <button
+      type="button"
+      className="btn-nuevo-cierre"
+      onClick={abrirNuevoCierre}
+    >
+      <FaScaleBalanced />
+      Nuevo Cierre
+    </button>
 
-          <button
-            type="button"
-            className="btn-nuevo-movimiento"
-            onClick={abrirNuevoMovimiento}
-          >
-            <FaPlus />
-            Nuevo Movimiento
-          </button>
-        </div>
+    <button
+      type="button"
+      className="btn-nuevo-movimiento"
+      onClick={abrirNuevoMovimiento}
+    >
+      <FaPlus />
+      Nuevo Movimiento
+    </button>
+  </div>
+)}
       </div>
 
       {mensaje && (
@@ -577,17 +634,23 @@ function Caja() {
               <span>{movimientos.length}</span>
             </button>
 
-            <button
-              type="button"
-              className={seccionActiva === 'cierres' ? 'activo' : ''}
-              onClick={() => {
-                setSeccionActiva('cierres')
-                cerrarPaneles()
-              }}
-            >
-              Cierres
-              <span>{cierres.length}</span>
-            </button>
+            {esAdministrador && (
+  <button
+    type="button"
+    className={
+      seccionActiva === 'cierres'
+        ? 'activo'
+        : ''
+    }
+    onClick={() => {
+      setSeccionActiva('cierres')
+      cerrarPaneles()
+    }}
+  >
+    Cierres
+    <span>{cierres.length}</span>
+  </button>
+)}
           </div>
 
           <div className="caja-toolbar">
@@ -741,7 +804,9 @@ function Caja() {
                             <FaEye />
                           </button>
 
-                          {movimientoPuedeEliminarse(movimiento) && (
+                          {esAdministrador
+  && movimientoPuedeEliminarse(movimiento)
+  && (
                             <button
                               type="button"
                               className="btn-caja-accion eliminar"
@@ -824,15 +889,17 @@ function Caja() {
                             <FaEye />
                           </button>
 
-                          <button
-                            type="button"
-                            className="btn-caja-accion eliminar"
-                            onClick={() => eliminarCierre(cierre)}
-                            title="Eliminar cierre"
-                            aria-label="Eliminar cierre"
-                          >
-                            <FaTrash />
-                          </button>
+                          {esAdministrador && (
+  <button
+    type="button"
+    className="btn-caja-accion eliminar"
+    onClick={() => eliminarCierre(cierre)}
+    title="Eliminar cierre"
+    aria-label="Eliminar cierre"
+  >
+    <FaTrash />
+  </button>
+)}
                         </div>
                       </td>
                     </tr>
@@ -1063,7 +1130,11 @@ function Caja() {
                   </div>
                 )}
 
-                {movimientoPuedeEliminarse(movimientoSeleccionado) && (
+                {esAdministrador
+  && movimientoPuedeEliminarse(
+    movimientoSeleccionado,
+  )
+  && (
                   <button
                     type="button"
                     className="btn-eliminar-caja"
@@ -1135,14 +1206,18 @@ function Caja() {
                   </div>
                 </div>
 
-                <button
-                  type="button"
-                  className="btn-eliminar-caja"
-                  onClick={() => eliminarCierre(cierreSeleccionado)}
-                >
-                  <FaTrash />
-                  Eliminar Cierre
-                </button>
+                {esAdministrador && (
+  <button
+    type="button"
+    className="btn-eliminar-caja"
+    onClick={() => {
+      eliminarCierre(cierreSeleccionado)
+    }}
+  >
+    <FaTrash />
+    Eliminar Cierre
+  </button>
+)}
               </>
             )}
           </aside>

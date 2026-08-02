@@ -1,5 +1,7 @@
-from rest_framework.permissions import BasePermission
-
+from rest_framework.permissions import (
+    BasePermission,
+    SAFE_METHODS,
+)
 
 PERMISOS_POR_ROL = {
     'administrador': {
@@ -13,11 +15,16 @@ PERMISOS_POR_ROL = {
         'higiene',
         'productos',
         'stock',
+        'consumo_insumos',
+        'proveedores',
+        'compras',
         'ventas',
+        'pagos',
         'caja',
         'reportes',
         'usuarios',
         'configuracion',
+        'servicios',
     },
 
     'recepcionista': {
@@ -25,10 +32,11 @@ PERMISOS_POR_ROL = {
         'clientes',
         'mascotas',
         'turnos',
-        'consultas',
-        'vacunaciones',
-        'cirugias',
+        'higiene',
+        'ventas',
+        'pagos',
         'caja',
+        'servicios',
     },
 
     'veterinario': {
@@ -39,6 +47,9 @@ PERMISOS_POR_ROL = {
         'consultas',
         'vacunaciones',
         'cirugias',
+        'consumo_insumos',
+        'reportes',
+        'servicios',
     },
 
     'ventas': {
@@ -46,51 +57,73 @@ PERMISOS_POR_ROL = {
         'clientes',
         'productos',
         'stock',
+        'proveedores',
+        'compras',
         'ventas',
+        'pagos',
         'caja',
+        'reportes',
+        'servicios',
     },
 
     'higiene': {
         'dashboard',
-        'clientes',
         'mascotas',
         'turnos',
         'higiene',
+        'consumo_insumos',
+        'servicios',
     },
 }
 
 
 class EsAdministrador(BasePermission):
-    message = 'Solo un administrador puede realizar esta operación.'
+    message = (
+        'Solo un administrador puede realizar '
+        'esta operación.'
+    )
 
     def has_permission(self, request, view):
         usuario = request.user
 
-        if not usuario or not usuario.is_authenticated:
+        if (
+            not usuario
+            or not usuario.is_authenticated
+        ):
             return False
 
         if usuario.is_superuser:
             return True
 
-        perfil = getattr(usuario, 'perfil', None)
+        perfil = getattr(
+            usuario,
+            'perfil',
+            None,
+        )
 
         if not perfil:
             return False
 
         return (
-            perfil.rol == 'administrador'
+            usuario.is_active
             and perfil.estado == 'activo'
-            and usuario.is_active
+            and perfil.rol == 'administrador'
         )
 
 
 class TienePermisoModulo(BasePermission):
-    message = 'No tenés permiso para acceder a este módulo.'
+    message = (
+        'No tenés permiso para acceder '
+        'a este módulo.'
+    )
 
     def has_permission(self, request, view):
         usuario = request.user
 
-        if not usuario or not usuario.is_authenticated:
+        if (
+            not usuario
+            or not usuario.is_authenticated
+        ):
             return False
 
         if not usuario.is_active:
@@ -99,19 +132,89 @@ class TienePermisoModulo(BasePermission):
         if usuario.is_superuser:
             return True
 
-        perfil = getattr(usuario, 'perfil', None)
+        perfil = getattr(
+            usuario,
+            'perfil',
+            None,
+        )
 
-        if not perfil or perfil.estado != 'activo':
+        if (
+            not perfil
+            or perfil.estado != 'activo'
+        ):
             return False
 
-        modulo = getattr(view, 'modulo_permiso', None)
+        modulo = getattr(
+            view,
+            'modulo_permiso',
+            None,
+        )
 
         if not modulo:
             return False
 
-        rol = str(perfil.rol).strip().lower()
-        modulo = str(modulo).strip().lower()
+        rol_normalizado = str(
+            perfil.rol
+        ).strip().lower()
 
-        permisos = PERMISOS_POR_ROL.get(rol, set())
+        modulo_normalizado = str(
+            modulo
+        ).strip().lower()
 
-        return modulo in permisos
+        permisos = PERMISOS_POR_ROL.get(
+            rol_normalizado,
+            set(),
+        )
+
+        if modulo_normalizado not in permisos:
+            return False
+
+        roles_permitidos_config = getattr(
+            view,
+            'roles_permitidos',
+            None,
+        )
+
+        if roles_permitidos_config:
+            roles_permitidos = {
+                str(rol).strip().lower()
+                for rol in roles_permitidos_config
+            }
+
+            if rol_normalizado not in roles_permitidos:
+                self.message = (
+                    'Tu rol no tiene permiso para '
+                    'realizar esta operación.'
+                )
+                return False
+
+        roles_solo_lectura = {
+            str(rol).strip().lower()
+            for rol in getattr(
+                view,
+                'roles_solo_lectura',
+                set(),
+            )
+        }
+        # Los roles indicados en la vista podrán realizar
+        # únicamente consultas GET, HEAD y OPTIONS.
+        roles_solo_lectura = {
+            str(rol).strip().lower()
+            for rol in getattr(
+                view,
+                'roles_solo_lectura',
+                set(),
+            )
+        }
+
+        if (
+            rol_normalizado in roles_solo_lectura
+            and request.method not in SAFE_METHODS
+        ):
+            self.message = (
+                'Tu rol solamente puede consultar '
+                'la información de este módulo.'
+            )
+            return False
+
+        return True

@@ -18,6 +18,7 @@ import {
   crearUsuario,
   actualizarUsuario,
   eliminarUsuario as eliminarUsuarioApi,
+  restablecerPassword,
 } from '../services/usuariosService'
 import { PERMISOS_POR_ROL } from '../utils/permisos'
 import './Usuarios.css'
@@ -34,11 +35,16 @@ const nombresModulos = {
   higiene: 'Higiene',
   productos: 'Productos',
   stock: 'Stock',
+  consumo_insumos: 'Consumo de insumos',
+  proveedores: 'Proveedores',
+  compras: 'Compras',
+  pagos: 'Pagos',
   ventas: 'Ventas',
   caja: 'Caja',
   reportes: 'Reportes',
   usuarios: 'Usuarios',
   configuracion: 'Configuración',
+  servicios: 'Servicios',
 }
 
 const usuarioVacio = {
@@ -59,6 +65,30 @@ function Usuarios() {
   const [errores, setErrores] = useState({})
   const [mensaje, setMensaje] = useState(null)
   const [usuarioAEliminar, setUsuarioAEliminar] = useState(null)
+  const [
+  usuarioARestablecer,
+  setUsuarioARestablecer,
+] = useState(null)
+
+const [
+  passwordTemporal,
+  setPasswordTemporal,
+] = useState('')
+
+const [
+  passwordConfirmacion,
+  setPasswordConfirmacion,
+] = useState('')
+
+const [
+  errorRestablecer,
+  setErrorRestablecer,
+] = useState('')
+
+const [
+  restableciendo,
+  setRestableciendo,
+] = useState(false)
   useEffect(() => {
   cargarUsuarios()
 }, [])
@@ -70,13 +100,16 @@ const cargarUsuarios = async () => {
     const datos = await obtenerUsuarios()
 
     const usuariosFormateados = datos.map((u) => ({
-      id: u.id,
-      nombre: `${u.first_name} ${u.last_name}`.trim(),
-      usuario: u.username,
-      email: u.email,
-      rol: u.rol,
-      estado: u.estado === 'activo',
-    }))
+  id: u.id,
+  nombre: `${u.first_name} ${u.last_name}`.trim(),
+  usuario: u.username,
+  email: u.email,
+  rol: u.rol,
+  estado: u.estado === 'activo',
+  debeCambiarPassword: Boolean(
+    u.debe_cambiar_password,
+  ),
+}))
 
     setUsuarios(usuariosFormateados)
   } catch (error) {
@@ -303,7 +336,96 @@ const eliminarUsuario = async () => {
     )
   }
 }
+const abrirRestablecerPassword = (usuario) => {
+  setUsuarioARestablecer(usuario)
+  setPasswordTemporal('')
+  setPasswordConfirmacion('')
+  setErrorRestablecer('')
+  setMensaje(null)
+}
 
+const cerrarRestablecerPassword = () => {
+  if (restableciendo) {
+    return
+  }
+
+  setUsuarioARestablecer(null)
+  setPasswordTemporal('')
+  setPasswordConfirmacion('')
+  setErrorRestablecer('')
+}
+
+const confirmarRestablecimiento = async (evento) => {
+  evento.preventDefault()
+
+  setErrorRestablecer('')
+
+  if (
+    !passwordTemporal
+    || !passwordConfirmacion
+  ) {
+    setErrorRestablecer(
+      'Completá las dos contraseñas.',
+    )
+    return
+  }
+
+  if (passwordTemporal.length < 6) {
+    setErrorRestablecer(
+      'La contraseña temporal debe tener al menos 6 caracteres.',
+    )
+    return
+  }
+
+  if (
+    passwordTemporal
+    !== passwordConfirmacion
+  ) {
+    setErrorRestablecer(
+      'Las contraseñas no coinciden.',
+    )
+    return
+  }
+
+  try {
+    setRestableciendo(true)
+
+    const respuesta = await restablecerPassword(
+      usuarioARestablecer.id,
+      passwordTemporal,
+      passwordConfirmacion,
+    )
+
+    await cargarUsuarios()
+
+    setUsuarioARestablecer(null)
+    setPasswordTemporal('')
+    setPasswordConfirmacion('')
+
+    mostrarMensaje(
+      respuesta.detail
+        || 'La contraseña fue restablecida correctamente.',
+      'exito',
+    )
+  } catch (error) {
+    console.error(
+      'Error al restablecer contraseña:',
+      error.response?.data || error,
+    )
+
+    const datos = error.response?.data
+
+    const mensajeError =
+      datos?.password_temporal?.[0]
+      || datos?.password_confirmacion?.[0]
+      || datos?.detail
+      || 'No se pudo restablecer la contraseña.'
+
+    setErrorRestablecer(mensajeError)
+  } finally {
+    setRestableciendo(false)
+  }
+}
   const permisosFormulario =
   PERMISOS_POR_ROL[formulario.rol?.toLowerCase()] || []
 
@@ -415,6 +537,11 @@ const permisosSeleccionado =
                       >
                         {usuario.estado ? 'Activo' : 'Inactivo'}
                       </span>
+                      {usuario.debeCambiarPassword && (
+  <span className="password-pendiente">
+    Cambio de contraseña pendiente
+  </span>
+)}
                     </td>
 
                     <td>
@@ -439,6 +566,19 @@ const permisosSeleccionado =
                           <FaPen />
                         </button>
 
+                        <button
+  type="button"
+  className="btn-accion password"
+  onClick={() => {
+    abrirRestablecerPassword(usuario)
+  }}
+  title="Restablecer contraseña"
+  aria-label={
+    `Restablecer contraseña de ${usuario.nombre}`
+  }
+>
+  <FaKey />
+</button>
                         <button
                           type="button"
                           className="btn-accion eliminar"
@@ -691,6 +831,108 @@ const permisosSeleccionado =
           </div>
         </div>
       )}
+
+     {usuarioARestablecer && (
+  <div
+    className="usuarios-modal-overlay"
+    role="presentation"
+  >
+    <form
+      className="usuarios-modal usuarios-modal-password"
+      role="dialog"
+      aria-modal="true"
+      aria-labelledby="titulo-restablecer-password"
+      onSubmit={confirmarRestablecimiento}
+    >
+      <div className="usuarios-modal-icono password">
+        <FaKey />
+      </div>
+
+      <h3 id="titulo-restablecer-password">
+        Restablecer contraseña
+      </h3>
+
+      <p>
+        Asigná una contraseña temporal a{' '}
+        <strong>
+          {usuarioARestablecer.nombre}
+        </strong>
+        . En su próximo ingreso deberá cambiarla.
+      </p>
+
+      <label htmlFor="password-temporal">
+        Contraseña temporal
+      </label>
+
+      <input
+        id="password-temporal"
+        type="password"
+        value={passwordTemporal}
+        onChange={(evento) => {
+          setPasswordTemporal(
+            evento.target.value,
+          )
+          setErrorRestablecer('')
+        }}
+        placeholder="Mínimo 6 caracteres"
+        autoComplete="new-password"
+        disabled={restableciendo}
+        autoFocus
+      />
+
+      <label htmlFor="password-confirmacion">
+        Confirmar contraseña
+      </label>
+
+      <input
+        id="password-confirmacion"
+        type="password"
+        value={passwordConfirmacion}
+        onChange={(evento) => {
+          setPasswordConfirmacion(
+            evento.target.value,
+          )
+          setErrorRestablecer('')
+        }}
+        placeholder="Repetí la contraseña temporal"
+        autoComplete="new-password"
+        disabled={restableciendo}
+      />
+
+      {errorRestablecer && (
+        <div
+          className="error-restablecer-password"
+          role="alert"
+        >
+          {errorRestablecer}
+        </div>
+      )}
+
+      <div className="usuarios-modal-acciones">
+        <button
+          type="button"
+          className="btn-modal-cancelar"
+          onClick={cerrarRestablecerPassword}
+          disabled={restableciendo}
+        >
+          Cancelar
+        </button>
+
+        <button
+          type="submit"
+          className="btn-modal-restablecer"
+          disabled={restableciendo}
+        >
+          <FaKey />
+
+          {restableciendo
+            ? 'Restableciendo...'
+            : 'Restablecer'}
+        </button>
+      </div>
+    </form>
+  </div>
+)} 
     </section>
   )
 }

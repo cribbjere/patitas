@@ -1,5 +1,14 @@
-import { Navigate, Outlet, useLocation } from 'react-router-dom'
-import { tienePermiso } from '../utils/permisos'
+import {
+  Navigate,
+  Outlet,
+  useLocation,
+} from 'react-router-dom'
+
+import {
+  obtenerUsuarioGuardado,
+  tienePermiso,
+} from '../utils/permisos'
+
 
 function RutaProtegida() {
   const token = localStorage.getItem('token')
@@ -9,7 +18,36 @@ function RutaProtegida() {
     return <Navigate to="/" replace />
   }
 
-  const ruta = location.pathname.split('/')[1]
+  const usuario = obtenerUsuarioGuardado()
+
+  if (!usuario) {
+    localStorage.removeItem('token')
+    localStorage.removeItem('usuario')
+
+    return <Navigate to="/" replace />
+  }
+
+  const esRutaCambioPassword =
+    location.pathname === '/cambiar-contrasena'
+
+  /*
+   * Si la contraseña es temporal, el usuario solamente
+   * puede acceder a la pantalla para cambiarla.
+   */
+  if (
+    usuario.debe_cambiar_password
+    && !esRutaCambioPassword
+  ) {
+    return (
+      <Navigate
+        to="/cambiar-contrasena"
+        replace
+      />
+    )
+  }
+
+  const ruta =
+    location.pathname.split('/').filter(Boolean)[0] || ''
 
   const equivalencias = {
     dashboard: 'dashboard',
@@ -23,6 +61,7 @@ function RutaProtegida() {
     productos: 'productos',
     stock: 'stock',
     ventas: 'ventas',
+    caja: 'caja',
     reportes: 'reportes',
     usuarios: 'usuarios',
     configuracion: 'configuracion',
@@ -30,8 +69,16 @@ function RutaProtegida() {
 
   const permiso = equivalencias[ruta]
 
-  if (permiso && !tienePermiso(permiso)) {
-    return <Navigate to="/dashboard" replace />
+  if (
+    permiso
+    && !tienePermiso(permiso)
+  ) {
+    return (
+      <Navigate
+        to="/dashboard"
+        replace
+      />
+    )
   }
 
   return <Outlet />

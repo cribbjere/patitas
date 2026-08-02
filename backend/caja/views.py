@@ -3,13 +3,12 @@ from rest_framework import viewsets
 from usuarios.permisos import TienePermisoModulo
 
 from .models import (
-    MovimientoCaja,
     CierreCaja,
+    MovimientoCaja,
 )
-
 from .serializers import (
-    MovimientoCajaSerializer,
     CierreCajaSerializer,
+    MovimientoCajaSerializer,
 )
 
 
@@ -18,17 +17,41 @@ class MovimientoCajaViewSet(viewsets.ModelViewSet):
     permission_classes = [TienePermisoModulo]
     modulo_permiso = 'caja'
 
-    def get_queryset(self):
-        queryset = MovimientoCaja.objects.select_related(
-            'usuario'
-        ).order_by('-fecha')
+    # Recepción y Ventas pueden consultar movimientos,
+    # pero no crear, editar ni eliminar ajustes manuales.
+    roles_solo_lectura = {
+        'recepcionista',
+        'ventas',
+    }
 
-        tipo_movimiento = self.request.query_params.get(
-            'tipo_movimiento'
+    def get_queryset(self):
+        queryset = (
+            MovimientoCaja.objects
+            .select_related('usuario')
+            .order_by('-fecha', '-id')
         )
-        motivo = self.request.query_params.get('motivo')
-        fecha_desde = self.request.query_params.get('fecha_desde')
-        fecha_hasta = self.request.query_params.get('fecha_hasta')
+
+        tipo_movimiento = (
+            self.request.query_params.get(
+                'tipo_movimiento'
+            )
+        )
+
+        motivo = self.request.query_params.get(
+            'motivo'
+        )
+
+        fecha_desde = (
+            self.request.query_params.get(
+                'fecha_desde'
+            )
+        )
+
+        fecha_hasta = (
+            self.request.query_params.get(
+                'fecha_hasta'
+            )
+        )
 
         if tipo_movimiento:
             queryset = queryset.filter(
@@ -63,16 +86,28 @@ class CierreCajaViewSet(viewsets.ModelViewSet):
     permission_classes = [TienePermisoModulo]
     modulo_permiso = 'caja'
 
-    def get_queryset(self):
-        queryset = CierreCaja.objects.select_related(
-            'usuario'
-        ).order_by('-fecha_cierre')
+    # Los cierres son exclusivamente administrativos.
+    roles_permitidos = {
+        'administrador',
+    }
 
-        fecha_desde = self.request.query_params.get(
-            'fecha_desde'
+    def get_queryset(self):
+        queryset = (
+            CierreCaja.objects
+            .select_related('usuario')
+            .order_by('-fecha_cierre', '-id')
         )
-        fecha_hasta = self.request.query_params.get(
-            'fecha_hasta'
+
+        fecha_desde = (
+            self.request.query_params.get(
+                'fecha_desde'
+            )
+        )
+
+        fecha_hasta = (
+            self.request.query_params.get(
+                'fecha_hasta'
+            )
         )
 
         if fecha_desde:

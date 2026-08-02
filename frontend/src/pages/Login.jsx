@@ -6,6 +6,7 @@ import logoPatitas from '../assets/logos/logo-patitas.png'
 import huellaAzul from '../assets/icons/huella-azul.png'
 import { login } from '../services/authService'
 
+
 function Login() {
   const navigate = useNavigate()
 
@@ -14,11 +15,13 @@ function Login() {
   const [error, setError] = useState('')
   const [cargando, setCargando] = useState(false)
 
-  const handleSubmit = async (e) => {
-    e.preventDefault()
+  const handleSubmit = async (evento) => {
+    evento.preventDefault()
 
     if (!username.trim() || !password.trim()) {
-      setError('Completá el usuario y la contraseña')
+      setError(
+        'Completá el usuario y la contraseña.',
+      )
       return
     }
 
@@ -26,11 +29,34 @@ function Login() {
       setCargando(true)
       setError('')
 
-      await login(username, password)
+      const respuesta = await login(
+        username.trim(),
+        password,
+      )
 
-      navigate('/dashboard')
-    } catch (error) {
-      setError(error.message)
+      if (
+        respuesta.usuario?.debe_cambiar_password
+      ) {
+        navigate(
+          '/cambiar-contrasena',
+          {
+            replace: true,
+          },
+        )
+        return
+      }
+
+      navigate(
+        '/dashboard',
+        {
+          replace: true,
+        },
+      )
+    } catch (errorLogin) {
+      setError(
+        errorLogin.message
+        || 'No se pudo iniciar sesión.',
+      )
     } finally {
       setCargando(false)
     }
@@ -39,11 +65,29 @@ function Login() {
   return (
     <div className="login-page">
       <div className="login-left">
+        <img
+          src={huellaAzul}
+          alt=""
+          className="paw paw-top-left"
+        />
 
-        <img src={huellaAzul} alt="" className="paw paw-top-left" />
-        <img src={huellaAzul} alt="" className="paw paw-top-right" />
-        <img src={huellaAzul} alt="" className="paw paw-bottom-left" />
-        <img src={huellaAzul} alt="" className="paw paw-bottom-right" />
+        <img
+          src={huellaAzul}
+          alt=""
+          className="paw paw-top-right"
+        />
+
+        <img
+          src={huellaAzul}
+          alt=""
+          className="paw paw-bottom-left"
+        />
+
+        <img
+          src={huellaAzul}
+          alt=""
+          className="paw paw-bottom-right"
+        />
 
         <div className="login-left-content">
           <img
@@ -52,44 +96,67 @@ function Login() {
             className="login-logo"
           />
 
-          <h1>Sistema de Gestión Veterinaria</h1>
-          <p>Bienvenido, inicia sesión para continuar</p>
-        </div>
+          <h1>
+            Sistema de Gestión Veterinaria
+          </h1>
 
+          <p>
+            Bienvenido, inicia sesión para continuar
+          </p>
+        </div>
       </div>
 
       <div className="login-right">
         <div className="login-card">
-
           <h2>Iniciar Sesión</h2>
-          <p className="login-subtitle">Ingresá tus datos</p>
+
+          <p className="login-subtitle">
+            Ingresá tus datos
+          </p>
 
           <form onSubmit={handleSubmit}>
-            <label>Usuario</label>
+            <label htmlFor="username">
+              Usuario
+            </label>
 
             <div className="input-group-login">
-              <span className="input-icon">♡</span>
+              <span className="input-icon">
+                ♡
+              </span>
 
               <input
+                id="username"
                 type="text"
                 placeholder="Ingrese su usuario"
                 value={username}
-                onChange={(e) => setUsername(e.target.value)}
+                onChange={(evento) => {
+                  setUsername(evento.target.value)
+                  setError('')
+                }}
                 disabled={cargando}
                 autoComplete="username"
+                autoFocus
               />
             </div>
 
-            <label>Contraseña</label>
+            <label htmlFor="password">
+              Contraseña
+            </label>
 
             <div className="input-group-login">
-              <span className="input-icon">▣</span>
+              <span className="input-icon">
+                ▣
+              </span>
 
               <input
+                id="password"
                 type="password"
                 placeholder="Ingrese su contraseña"
                 value={password}
-                onChange={(e) => setPassword(e.target.value)}
+                onChange={(evento) => {
+                  setPassword(evento.target.value)
+                  setError('')
+                }}
                 disabled={cargando}
                 autoComplete="current-password"
               />
@@ -97,6 +164,7 @@ function Login() {
 
             {error && (
               <p
+                role="alert"
                 style={{
                   color: '#c62828',
                   marginTop: '10px',
@@ -112,14 +180,23 @@ function Login() {
               type="submit"
               disabled={cargando}
             >
-              {cargando ? 'Ingresando...' : 'Ingresar'}
+              {cargando
+                ? 'Ingresando...'
+                : 'Ingresar'}
             </button>
 
-            <a href="#">
-              ¿Olvidaste tu contraseña?
-            </a>
+            <p
+              style={{
+                marginTop: '16px',
+                textAlign: 'center',
+                fontSize: '13px',
+                color: '#64748b',
+              }}
+            >
+              Para restablecer tu contraseña,
+              comunicate con el administrador.
+            </p>
           </form>
-
         </div>
       </div>
     </div>

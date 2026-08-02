@@ -1,5 +1,5 @@
-from django.db import models
 from django.contrib.auth.models import User
+from django.db import models
 
 
 class PerfilUsuario(models.Model):
@@ -20,21 +20,30 @@ class PerfilUsuario(models.Model):
     usuario = models.OneToOneField(
         User,
         on_delete=models.CASCADE,
-        related_name='perfil'
+        related_name='perfil',
     )
 
     rol = models.CharField(
         max_length=20,
-        choices=ROLES
+        choices=ROLES,
     )
 
     estado = models.CharField(
         max_length=10,
         choices=ESTADOS,
-        default='activo'
+        default='activo',
     )
 
-    fecha_creacion = models.DateTimeField(auto_now_add=True)
+    debe_cambiar_password = models.BooleanField(
+        default=False,
+    )
+
+    fecha_creacion = models.DateTimeField(
+        auto_now_add=True,
+    )
 
     def __str__(self):
-        return f"{self.usuario.username} - {self.rol}"
+        return (
+            f"{self.usuario.username} - "
+            f"{self.get_rol_display()}"
+        )

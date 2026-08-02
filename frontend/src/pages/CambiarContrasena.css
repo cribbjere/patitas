@@ -1,0 +1,162 @@
+.cambiar-password-pagina {
+  width: 100%;
+  min-height: calc(100vh - 80px);
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  padding: 32px 20px;
+  box-sizing: border-box;
+  background: #f5f7fa;
+}
+
+.cambiar-password-tarjeta {
+  width: 100%;
+  max-width: 520px;
+  padding: 32px;
+  border: 1px solid #e2e8f0;
+  border-radius: 16px;
+  background: #ffffff;
+  box-shadow: 0 12px 30px rgba(15, 23, 42, 0.08);
+}
+
+.cambiar-password-encabezado {
+  display: flex;
+  align-items: flex-start;
+  gap: 16px;
+  margin-bottom: 28px;
+}
+
+.cambiar-password-icono {
+  min-width: 52px;
+  height: 52px;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  border-radius: 14px;
+  background: #e8f5ee;
+  font-size: 25px;
+}
+
+.cambiar-password-encabezado h1 {
+  margin: 0 0 7px;
+  color: #1e293b;
+  font-size: 26px;
+}
+
+.cambiar-password-encabezado p {
+  margin: 0;
+  color: #64748b;
+  font-size: 15px;
+  line-height: 1.5;
+}
+
+.cambiar-password-formulario {
+  display: flex;
+  flex-direction: column;
+  gap: 20px;
+}
+
+.cambiar-password-campo {
+  display: flex;
+  flex-direction: column;
+  gap: 8px;
+}
+
+.cambiar-password-campo label {
+  color: #334155;
+  font-size: 14px;
+  font-weight: 600;
+}
+
+.cambiar-password-campo input {
+  width: 100%;
+  padding: 12px 14px;
+  box-sizing: border-box;
+  border: 1px solid #cbd5e1;
+  border-radius: 9px;
+  background: #ffffff;
+  color: #1e293b;
+  font-size: 15px;
+  outline: none;
+  transition:
+    border-color 0.2s ease,
+    box-shadow 0.2s ease;
+}
+
+.cambiar-password-campo input:focus {
+  border-color: #24845c;
+  box-shadow: 0 0 0 3px rgba(36, 132, 92, 0.14);
+}
+
+.cambiar-password-campo input:disabled {
+  cursor: not-allowed;
+  background: #f1f5f9;
+}
+
+.cambiar-password-campo small {
+  color: #64748b;
+  font-size: 12px;
+  line-height: 1.4;
+}
+
+.cambiar-password-alerta {
+  padding: 12px 14px;
+  border-radius: 9px;
+  font-size: 14px;
+  line-height: 1.4;
+}
+
+.cambiar-password-error {
+  border: 1px solid #fecaca;
+  background: #fef2f2;
+  color: #b91c1c;
+}
+
+.cambiar-password-exito {
+  border: 1px solid #bbf7d0;
+  background: #f0fdf4;
+  color: #166534;
+}
+
+.cambiar-password-boton {
+  width: 100%;
+  padding: 13px 18px;
+  border: none;
+  border-radius: 9px;
+  background: #24845c;
+  color: #ffffff;
+  font-size: 15px;
+  font-weight: 700;
+  cursor: pointer;
+  transition:
+    background 0.2s ease,
+    transform 0.2s ease;
+}
+
+.cambiar-password-boton:hover:not(:disabled) {
+  background: #1d6f4d;
+  transform: translateY(-1px);
+}
+
+.cambiar-password-boton:disabled {
+  cursor: not-allowed;
+  opacity: 0.7;
+}
+
+@media (max-width: 600px) {
+  .cambiar-password-pagina {
+    padding: 20px 14px;
+  }
+
+  .cambiar-password-tarjeta {
+    padding: 24px 20px;
+  }
+
+  .cambiar-password-encabezado {
+    flex-direction: column;
+  }
+
+  .cambiar-password-encabezado h1 {
+    font-size: 23px;
+  }
+}

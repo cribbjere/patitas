@@ -1,4 +1,8 @@
-import { BrowserRouter, Routes, Route } from 'react-router-dom'
+import {
+  BrowserRouter,
+  Route,
+  Routes,
+} from 'react-router-dom'
 
 import Login from '../pages/Login'
 import Dashboard from '../pages/Dashboard'
@@ -16,34 +20,104 @@ import Caja from '../pages/Caja'
 import Reportes from '../pages/Reportes'
 import Usuarios from '../pages/Usuarios'
 import Configuracion from '../pages/Configuracion'
+import CambiarContrasena from '../pages/CambiarContrasena'
+
 import RutaProtegida from './RutaProtegida'
 import MainLayout from '../layouts/MainLayout'
+
 
 function AppRouter() {
   return (
     <BrowserRouter>
       <Routes>
-        <Route path="/" element={<Login />} />
+        <Route
+          path="/"
+          element={<Login />}
+        />
 
         <Route element={<RutaProtegida />}>
-  <Route element={<MainLayout />}>
-    <Route path="/dashboard" element={<Dashboard />} />
-    <Route path="/clientes" element={<Clientes />} />
-    <Route path="/mascotas" element={<Mascotas />} />
-    <Route path="/turnos" element={<Turnos />} />
-    <Route path="/consultas" element={<Consultas />} />
-    <Route path="/vacunaciones" element={<Vacunaciones />} />
-    <Route path="/cirugias" element={<Cirugias />} />
-    <Route path="/higiene" element={<Higiene />} />
-    <Route path="/productos" element={<Productos />} />
-    <Route path="/stock" element={<Stock />} />
-    <Route path="/ventas" element={<Ventas />} />
-    <Route path="/caja" element={<Caja />} />
-    <Route path="/reportes" element={<Reportes />} />
-    <Route path="/usuarios" element={<Usuarios />} />
-    <Route path="/configuracion" element={<Configuracion />} />
-  </Route>
-</Route>
+          <Route
+            path="/cambiar-contrasena"
+            element={<CambiarContrasena />}
+          />
+
+          <Route element={<MainLayout />}>
+            <Route
+              path="/dashboard"
+              element={<Dashboard />}
+            />
+
+            <Route
+              path="/clientes"
+              element={<Clientes />}
+            />
+
+            <Route
+              path="/mascotas"
+              element={<Mascotas />}
+            />
+
+            <Route
+              path="/turnos"
+              element={<Turnos />}
+            />
+
+            <Route
+              path="/consultas"
+              element={<Consultas />}
+            />
+
+            <Route
+              path="/vacunaciones"
+              element={<Vacunaciones />}
+            />
+
+            <Route
+              path="/cirugias"
+              element={<Cirugias />}
+            />
+
+            <Route
+              path="/higiene"
+              element={<Higiene />}
+            />
+
+            <Route
+              path="/productos"
+              element={<Productos />}
+            />
+
+            <Route
+              path="/stock"
+              element={<Stock />}
+            />
+
+            <Route
+              path="/ventas"
+              element={<Ventas />}
+            />
+
+            <Route
+              path="/caja"
+              element={<Caja />}
+            />
+
+            <Route
+              path="/reportes"
+              element={<Reportes />}
+            />
+
+            <Route
+              path="/usuarios"
+              element={<Usuarios />}
+            />
+
+            <Route
+              path="/configuracion"
+              element={<Configuracion />}
+            />
+          </Route>
+        </Route>
       </Routes>
     </BrowserRouter>
   )

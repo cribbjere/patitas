@@ -683,3 +683,112 @@
         width: 100%;
     }
 }
+.usuarios-page .btn-accion.password {
+    background-color: #d18424;
+}
+
+.password-pendiente {
+    display: block;
+    width: fit-content;
+    margin-top: 6px;
+    border-radius: 7px;
+    padding: 4px 7px;
+    background-color: #fff3d9;
+    color: #9a5b0b;
+    font-size: 11px;
+    font-weight: 700;
+    line-height: 1.3;
+}
+
+.usuarios-modal-password {
+    text-align: left;
+}
+
+.usuarios-modal-password h3,
+.usuarios-modal-password > p {
+    text-align: center;
+}
+
+.usuarios-modal-icono.password {
+    background-color: #fff3d9;
+    color: #b66a0c;
+}
+
+.usuarios-modal-password label {
+    display: block;
+    margin: 14px 0 7px;
+    color: #1d2944;
+    font-size: 14px;
+    font-weight: 600;
+}
+
+.usuarios-modal-password input {
+    width: 100%;
+    min-height: 42px;
+    box-sizing: border-box;
+    border: 1px solid #d7d7d7;
+    border-radius: 8px;
+    padding: 0 12px;
+    outline: none;
+    color: #1d2944;
+    font-family: 'Poppins', sans-serif;
+    font-size: 14px;
+}
+
+.usuarios-modal-password input:focus {
+    border-color: #2f8c80;
+    box-shadow: 0 0 0 3px rgba(47, 140, 128, 0.14);
+}
+
+.usuarios-modal-password input:disabled {
+    cursor: not-allowed;
+    background-color: #f2f3f6;
+}
+
+.error-restablecer-password {
+    margin-top: 14px;
+    border: 1px solid #efb4b4;
+    border-radius: 8px;
+    padding: 10px 12px;
+    background-color: #fff1f1;
+    color: #9f1d14;
+    font-size: 13px;
+    font-weight: 600;
+}
+
+.usuarios-modal-password .usuarios-modal-acciones {
+    margin-top: 22px;
+}
+
+.btn-modal-restablecer {
+    min-height: 42px;
+    border: none;
+    border-radius: 9px;
+    padding: 0 18px;
+    background-color: #d18424;
+    color: #ffffff;
+    font-family: 'Poppins', sans-serif;
+    font-size: 14px;
+    font-weight: 700;
+    cursor: pointer;
+    display: inline-flex;
+    align-items: center;
+    justify-content: center;
+    gap: 8px;
+}
+
+.btn-modal-restablecer:hover:not(:disabled) {
+    background-color: #b66a0c;
+}
+
+.btn-modal-restablecer:disabled,
+.btn-modal-cancelar:disabled {
+    cursor: not-allowed;
+    opacity: 0.65;
+}
+
+@media (max-width: 480px) {
+    .btn-modal-restablecer {
+        width: 100%;
+    }
+}

@@ -4,8 +4,10 @@ from rest_framework.routers import DefaultRouter
 from .views import (
     PerfilUsuarioViewSet,
     UsuarioViewSet,
+    cambiar_password,
     login,
 )
+
 
 router = DefaultRouter()
 
@@ -21,8 +23,18 @@ router.register(
     basename='perfiles-usuario',
 )
 
+
 urlpatterns = [
-    path('login/', login, name='login'),
+    path(
+        'login/',
+        login,
+        name='login',
+    ),
+    path(
+        'cambiar-password/',
+        cambiar_password,
+        name='cambiar-password',
+    ),
 ]
 
 urlpatterns += router.urls

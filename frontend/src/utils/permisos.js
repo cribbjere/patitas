@@ -6,15 +6,20 @@ export const PERMISOS_POR_ROL = {
     'turnos',
     'consultas',
     'vacunaciones',
+    'cirugias',
     'higiene',
     'productos',
     'stock',
+    'consumo_insumos',
+    'proveedores',
+    'compras',
     'ventas',
+    'pagos',
     'caja',
     'reportes',
     'usuarios',
     'configuracion',
-    'cirugias',
+    'servicios',
   ],
 
   recepcionista: [
@@ -22,12 +27,11 @@ export const PERMISOS_POR_ROL = {
     'clientes',
     'mascotas',
     'turnos',
-    'consultas',
-    'vacunaciones',
-    'cirugias',
-     'stock',
+    'higiene',
     'ventas',
+    'pagos',
     'caja',
+    'servicios',
   ],
 
   veterinario: [
@@ -38,6 +42,9 @@ export const PERMISOS_POR_ROL = {
     'consultas',
     'vacunaciones',
     'cirugias',
+    'consumo_insumos',
+    'reportes',
+    'servicios',
   ],
 
   ventas: [
@@ -45,21 +52,28 @@ export const PERMISOS_POR_ROL = {
     'clientes',
     'productos',
     'stock',
+    'proveedores',
+    'compras',
     'ventas',
+    'pagos',
     'caja',
+    'reportes',
+    'servicios',
   ],
 
   higiene: [
     'dashboard',
-    'clientes',
     'mascotas',
     'turnos',
     'higiene',
+    'consumo_insumos',
+    'servicios',
   ],
 }
 
 export const obtenerUsuarioGuardado = () => {
-  const usuarioGuardado = localStorage.getItem('usuario')
+  const usuarioGuardado =
+    localStorage.getItem('usuario')
 
   if (!usuarioGuardado) {
     return null
@@ -75,14 +89,22 @@ export const obtenerUsuarioGuardado = () => {
 export const tienePermiso = (modulo) => {
   const usuario = obtenerUsuarioGuardado()
 
-  if (!usuario?.rol) {
+  if (!usuario?.rol || !modulo) {
     return false
   }
 
-  const rolNormalizado = usuario.rol.trim().toLowerCase()
-  const moduloNormalizado = modulo.trim().toLowerCase()
+  const rolNormalizado = String(usuario.rol)
+    .trim()
+    .toLowerCase()
 
-  const permisosDelRol = PERMISOS_POR_ROL[rolNormalizado] || []
+  const moduloNormalizado = String(modulo)
+    .trim()
+    .toLowerCase()
 
-  return permisosDelRol.includes(moduloNormalizado)
+  const permisosDelRol =
+    PERMISOS_POR_ROL[rolNormalizado] || []
+
+  return permisosDelRol.includes(
+    moduloNormalizado
+  )
 }

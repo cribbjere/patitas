@@ -277,3 +277,34 @@
         align-items: flex-start;
     }
 }
+.btn-exportar-reporte {
+    min-height: 42px;
+    border: none;
+    border-radius: 8px;
+    padding: 0 18px;
+    background-color: #2f8c80;
+    color: #ffffff;
+    font-family: 'Poppins', sans-serif;
+    font-size: 14px;
+    font-weight: 700;
+    cursor: pointer;
+    transition:
+        background-color 0.2s ease,
+        transform 0.2s ease;
+}
+
+.btn-exportar-reporte:hover:not(:disabled) {
+    background-color: #28776d;
+    transform: translateY(-1px);
+}
+
+.btn-exportar-reporte:disabled {
+    cursor: not-allowed;
+    opacity: 0.65;
+}
+
+@media (max-width: 768px) {
+    .btn-exportar-reporte {
+        width: 100%;
+    }
+}
