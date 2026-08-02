@@ -25,6 +25,9 @@ export const PERMISOS_POR_ROL = {
     'consultas',
     'vacunaciones',
     'cirugias',
+     'stock',
+    'ventas',
+    'caja',
   ],
 
   veterinario: [

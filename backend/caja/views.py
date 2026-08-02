@@ -1,5 +1,6 @@
 from rest_framework import viewsets
-from rest_framework.permissions import IsAuthenticated
+
+from usuarios.permisos import TienePermisoModulo
 
 from .models import (
     MovimientoCaja,
@@ -14,7 +15,8 @@ from .serializers import (
 
 class MovimientoCajaViewSet(viewsets.ModelViewSet):
     serializer_class = MovimientoCajaSerializer
-    permission_classes = [IsAuthenticated]
+    permission_classes = [TienePermisoModulo]
+    modulo_permiso = 'caja'
 
     def get_queryset(self):
         queryset = MovimientoCaja.objects.select_related(
@@ -24,7 +26,6 @@ class MovimientoCajaViewSet(viewsets.ModelViewSet):
         tipo_movimiento = self.request.query_params.get(
             'tipo_movimiento'
         )
-
         motivo = self.request.query_params.get('motivo')
         fecha_desde = self.request.query_params.get('fecha_desde')
         fecha_hasta = self.request.query_params.get('fecha_hasta')
@@ -59,7 +60,8 @@ class MovimientoCajaViewSet(viewsets.ModelViewSet):
 
 class CierreCajaViewSet(viewsets.ModelViewSet):
     serializer_class = CierreCajaSerializer
-    permission_classes = [IsAuthenticated]
+    permission_classes = [TienePermisoModulo]
+    modulo_permiso = 'caja'
 
     def get_queryset(self):
         queryset = CierreCaja.objects.select_related(
@@ -69,7 +71,6 @@ class CierreCajaViewSet(viewsets.ModelViewSet):
         fecha_desde = self.request.query_params.get(
             'fecha_desde'
         )
-
         fecha_hasta = self.request.query_params.get(
             'fecha_hasta'
         )

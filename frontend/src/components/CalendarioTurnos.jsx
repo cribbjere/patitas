@@ -1,10 +1,9 @@
-import { useRef, useState } from 'react'
+import { useMemo, useRef, useState } from 'react'
 import FullCalendar from '@fullcalendar/react'
 import dayGridPlugin from '@fullcalendar/daygrid'
 import timeGridPlugin from '@fullcalendar/timegrid'
 import interactionPlugin from '@fullcalendar/interaction'
 import { FaChevronLeft, FaChevronRight } from 'react-icons/fa6'
-import { mascotas, turnos } from '../data/mockData'
 import './CalendarioTurnos.css'
 
 const meses = [
@@ -37,10 +36,15 @@ function formatearTituloSemana(inicio, fin) {
 
   const diaInicio = inicio.getDate()
   const diaFin = fechaFin.getDate()
-  const mes = meses[fechaFin.getMonth()]
+  const mesInicio = meses[inicio.getMonth()]
+  const mesFin = meses[fechaFin.getMonth()]
   const anio = fechaFin.getFullYear()
 
-  return `${diaInicio} - ${diaFin} de ${mes} de ${anio}`
+  if (inicio.getMonth() !== fechaFin.getMonth()) {
+    return `${diaInicio} de ${mesInicio} - ${diaFin} de ${mesFin} de ${anio}`
+  }
+
+  return `${diaInicio} - ${diaFin} de ${mesFin} de ${anio}`
 }
 
 function formatearTituloMes(fecha) {
@@ -51,20 +55,71 @@ function formatearTituloDia(fecha) {
   return `${fecha.getDate()} de ${meses[fecha.getMonth()]} de ${fecha.getFullYear()}`
 }
 
-function CalendarioTurnos() {
+function normalizarTexto(valor) {
+  return String(valor ?? '').trim().toLowerCase()
+}
+
+function obtenerId(valor) {
+  if (valor && typeof valor === 'object') {
+    return Number(valor.id)
+  }
+
+  return Number(valor)
+}
+
+function CalendarioTurnos({ turnos = [], mascotas = [] }) {
   const calendarioRef = useRef(null)
   const [titulo, setTitulo] = useState('')
 
-  const eventos = turnos.map((turno) => {
-    const mascota = mascotas.find((item) => item.id === turno.mascotaId)
+  const mascotasPorId = useMemo(
+    () =>
+      new Map(
+        mascotas.map((mascota) => [Number(mascota.id), mascota])
+      ),
+    [mascotas]
+  )
 
-    return {
-      id: turno.id,
-      title: `${mascota?.nombre} - ${turno.motivo}`,
-      start: turno.fechaInicio,
-      end: turno.fechaFin,
-    }
-  })
+  const eventos = useMemo(
+    () =>
+      turnos
+        .filter(
+          (turno) => normalizarTexto(turno.estado) !== 'cancelado'
+        )
+        .map((turno) => {
+          const mascotaId = obtenerId(
+            turno.mascotaId ?? turno.mascota
+          )
+          const mascota = mascotasPorId.get(mascotaId)
+          const nombreMascota = mascota?.nombre || 'Mascota'
+          const motivo =
+            turno.motivo ||
+            turno.motivo_consulta ||
+            'Turno'
+
+          const fechaInicio =
+            turno.fechaInicio ||
+            turno.fecha_inicio ||
+            (turno.fecha && turno.hora
+              ? `${turno.fecha}T${turno.hora}`
+              : '')
+
+          const fechaFin =
+            turno.fechaFin ||
+            turno.fecha_fin ||
+            (turno.fecha && turno.hora_fin
+              ? `${turno.fecha}T${turno.hora_fin}`
+              : '')
+
+          return {
+            id: String(turno.id),
+            title: `${nombreMascota} - ${motivo}`,
+            start: fechaInicio,
+            end: fechaFin || undefined,
+          }
+        })
+        .filter((evento) => evento.start),
+    [turnos, mascotasPorId]
+  )
 
   const actualizarTitulo = (info) => {
     const tipoVista = info.view.type
@@ -82,32 +137,30 @@ function CalendarioTurnos() {
     }
   }
 
+  const obtenerApi = () => calendarioRef.current?.getApi()
+
   const irAnterior = () => {
-    const api = calendarioRef.current.getApi()
-    api.prev()
+    obtenerApi()?.prev()
   }
 
   const irSiguiente = () => {
-    const api = calendarioRef.current.getApi()
-    api.next()
+    obtenerApi()?.next()
   }
 
   const irHoy = () => {
-    const api = calendarioRef.current.getApi()
-    api.today()
+    obtenerApi()?.today()
   }
 
   const cambiarVista = (vista) => {
-    const api = calendarioRef.current.getApi()
-    api.changeView(vista)
+    obtenerApi()?.changeView(vista)
   }
 
   const handleEventClick = (info) => {
-    alert(`Turno seleccionado: ${info.event.title}`)
+    window.alert(`Turno seleccionado: ${info.event.title}`)
   }
 
   const handleDateClick = (info) => {
-    alert(`Día seleccionado: ${info.dateStr}`)
+    window.alert(`Día seleccionado: ${info.dateStr}`)
   }
 
   return (
@@ -130,15 +183,24 @@ function CalendarioTurnos() {
         <h3>{titulo}</h3>
 
         <div className="calendar-toolbar-right">
-          <button type="button" onClick={() => cambiarVista('dayGridMonth')}>
+          <button
+            type="button"
+            onClick={() => cambiarVista('dayGridMonth')}
+          >
             Mes
           </button>
 
-          <button type="button" onClick={() => cambiarVista('timeGridWeek')}>
+          <button
+            type="button"
+            onClick={() => cambiarVista('timeGridWeek')}
+          >
             Semana
           </button>
 
-          <button type="button" onClick={() => cambiarVista('timeGridDay')}>
+          <button
+            type="button"
+            onClick={() => cambiarVista('timeGridDay')}
+          >
             Día
           </button>
         </div>
@@ -149,7 +211,6 @@ function CalendarioTurnos() {
           ref={calendarioRef}
           plugins={[dayGridPlugin, timeGridPlugin, interactionPlugin]}
           initialView="timeGridWeek"
-          initialDate="2026-06-24"
           headerToolbar={false}
           height="100%"
           allDaySlot={false}
@@ -159,9 +220,9 @@ function CalendarioTurnos() {
           eventClick={handleEventClick}
           dateClick={handleDateClick}
           datesSet={actualizarTitulo}
-          dayHeaderContent={(args) => {
-            return `${dias[args.date.getDay()]} ${formatearFechaCorta(args.date)}`
-          }}
+          dayHeaderContent={(args) =>
+            `${dias[args.date.getDay()]} ${formatearFechaCorta(args.date)}`
+          }
           slotLabelFormat={{
             hour: '2-digit',
             minute: '2-digit',

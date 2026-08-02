@@ -177,14 +177,15 @@ class AdministrarUsuarioSerializer(serializers.ModelSerializer):
         perfil.save()
 
         return instance
-
     def to_representation(self, instance):
+        perfil = getattr(instance, 'perfil', None)
+
         return {
             'id': instance.id,
             'username': instance.username,
             'first_name': instance.first_name,
             'last_name': instance.last_name,
             'email': instance.email,
-            'rol': getattr(instance.perfil, 'rol', None),
-            'estado': getattr(instance.perfil, 'estado', None),
+            'rol': perfil.rol if perfil else None,
+            'estado': perfil.estado if perfil else None,
         }
