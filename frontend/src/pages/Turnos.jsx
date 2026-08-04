@@ -23,7 +23,7 @@ import {
   editarTurnoParcial,
   eliminarTurno as eliminarTurnoAPI,
 } from '../services/turnosService'
-
+import { obtenerUsuarioGuardado } from '../utils/permisos'
 import './Turnos.css'
 
 const turnoVacio = {
@@ -47,6 +47,17 @@ function obtenerHora(fechaCompleta) {
 }
 
 function Turnos() {
+  const usuario = obtenerUsuarioGuardado()
+
+  const rol = String(usuario?.rol || '')
+    .trim()
+    .toLowerCase()
+
+  const puedeGestionarTurnos = [
+    'administrador',
+    'recepcionista',
+  ].includes(rol)
+
   const [clientes, setClientes] = useState([])
   const [mascotas, setMascotas] = useState([])
   const [turnos, setTurnos] = useState([])
@@ -170,7 +181,10 @@ function Turnos() {
   }
 
   const abrirNuevoTurno = () => {
-    setFormulario(turnoVacio)
+  if (!puedeGestionarTurnos) {
+    return
+  }
+  setFormulario(turnoVacio)
     setTurnoSeleccionado(null)
     setModoEdicion(false)
     setMostrarFormulario(true)
@@ -185,7 +199,10 @@ function Turnos() {
   }
 
   const abrirEditarTurno = (turno) => {
-    setFormulario({
+  if (!puedeGestionarTurnos) {
+    return
+  }
+  setFormulario({
       mascotaId: turno.mascotaId,
       fecha: obtenerFecha(turno.fechaInicio),
       horaInicio: obtenerHora(turno.fechaInicio),
@@ -202,10 +219,16 @@ function Turnos() {
   }
 
   const reprogramarDesdeAlerta = () => {
-    if (!alertaSeguimiento?.turno) return
-    abrirEditarTurno(alertaSeguimiento.turno)
-    cerrarAlertaSeguimiento()
+  if (
+    !puedeGestionarTurnos
+    || !alertaSeguimiento?.turno
+  ) {
+    return
   }
+
+  abrirEditarTurno(alertaSeguimiento.turno)
+  cerrarAlertaSeguimiento()
+}
 
   const cerrarPanel = () => {
     setFormulario(turnoVacio)
@@ -260,9 +283,16 @@ function Turnos() {
   }
 
     const guardarTurno = async (e) => {
-    e.preventDefault()
+  e.preventDefault()
 
-    const error = validarFormulario()
+  if (!puedeGestionarTurnos) {
+    setErrorFormulario(
+      'Tu rol solamente puede consultar turnos.',
+    )
+    return
+  }
+
+  const error = validarFormulario()
 
     if (error) {
       setErrorFormulario(error)
@@ -380,7 +410,13 @@ function Turnos() {
     }
   }
  const cambiarEstadoTurno = async (id, nuevoEstado) => {
-  const turnoEncontrado = turnos.find((turno) => turno.id === id)
+  if (!puedeGestionarTurnos) {
+    return
+  }
+
+  const turnoEncontrado = turnos.find(
+    (turno) => turno.id === id
+  )
 
   if (!turnoEncontrado || turnoEncontrado.estado === nuevoEstado) return
 
@@ -457,7 +493,11 @@ function Turnos() {
   const marcarAusente = (id) => cambiarEstadoTurno(id, 'Ausente')
 
     const eliminarTurno = async (id) => {
-    const confirmar = window.confirm(
+  if (!puedeGestionarTurnos) {
+    return
+  }
+
+  const confirmar = window.confirm(
       '¿Seguro que querés eliminar este turno?'
     )
 
@@ -610,10 +650,16 @@ async function cargarDatos() {
           <p>Agenda, asignación y control de turnos</p>
         </div>
 
-        <button type="button" className="btn-nuevo-turno" onClick={abrirNuevoTurno}>
-          <FaPlus />
-          Nuevo Turno
-        </button>
+        {puedeGestionarTurnos && (
+  <button
+    type="button"
+    className="btn-nuevo-turno"
+    onClick={abrirNuevoTurno}
+  >
+    <FaPlus />
+    Nuevo Turno
+  </button>
+)}
       </div>
 
       {alertaSeguimiento && (
@@ -658,14 +704,16 @@ async function cargarDatos() {
               WhatsApp
             </button>
 
-            <button
-              type="button"
-              className="btn-alerta reprogramar"
-              onClick={reprogramarDesdeAlerta}
-            >
-              <FaPen />
-              Reprogramar
-            </button>
+            {puedeGestionarTurnos && (
+  <button
+    type="button"
+    className="btn-alerta reprogramar"
+    onClick={reprogramarDesdeAlerta}
+  >
+    <FaPen />
+    Reprogramar
+  </button>
+)}
 
             <button
               type="button"
@@ -751,44 +799,48 @@ async function cargarDatos() {
                       <td>
                         <div className="acciones">
                           <button
-                            className="btn-accion ver"
-                            onClick={() => abrirVerTurno(turno)}
-                            title="Ver turno"
-                          >
-                            <FaEye />
-                          </button>
+  className="btn-accion ver"
+  onClick={() => abrirVerTurno(turno)}
+  title="Ver turno"
+>
+  <FaEye />
+</button>
 
-                          <button
-                            className="btn-accion editar"
-                            onClick={() => abrirEditarTurno(turno)}
-                            title="Reprogramar / editar turno"
-                          >
-                            <FaPen />
-                          </button>
+                          {puedeGestionarTurnos && (
+  <>
+    <button
+      className="btn-accion editar"
+      onClick={() => abrirEditarTurno(turno)}
+      title="Reprogramar / editar turno"
+    >
+      <FaPen />
+    </button>
 
-                          <button
-                            className="btn-accion ausente"
-                            onClick={() => marcarAusente(turno.id)}
-                            title="Marcar como ausente"
-                          >
-                            A
-                          </button>
+    <button
+      className="btn-accion ausente"
+      onClick={() => marcarAusente(turno.id)}
+      title="Marcar como ausente"
+    >
+      A
+    </button>
 
-                          <button
-                            className="btn-accion cancelar"
-                            onClick={() => cancelarTurno(turno.id)}
-                            title="Cancelar turno"
-                          >
-                            <FaXmark />
-                          </button>
+    <button
+      className="btn-accion cancelar"
+      onClick={() => cancelarTurno(turno.id)}
+      title="Cancelar turno"
+    >
+      <FaXmark />
+    </button>
 
-                          <button
-                            className="btn-accion eliminar"
-                            onClick={() => eliminarTurno(turno.id)}
-                            title="Eliminar turno"
-                          >
-                            <FaTrash />
-                          </button>
+    <button
+      className="btn-accion eliminar"
+      onClick={() => eliminarTurno(turno.id)}
+      title="Eliminar turno"
+    >
+      <FaTrash />
+    </button>
+  </>
+)}
                         </div>
                       </td>
                     </tr>
@@ -997,13 +1049,17 @@ async function cargarDatos() {
                 )}
 
                 <div className="acciones-detalle-turno">
-                  <button
-                    className="btn-editar-detalle"
-                    onClick={() => abrirEditarTurno(turnoSeleccionado)}
-                  >
-                    <FaPen />
-                    Reprogramar
-                  </button>
+                  {puedeGestionarTurnos && (
+  <button
+    className="btn-editar-detalle"
+    onClick={() =>
+      abrirEditarTurno(turnoSeleccionado)
+    }
+  >
+    <FaPen />
+    Reprogramar
+  </button>
+)}
 
                   <button
                     className="btn-contacto-turno llamar"
