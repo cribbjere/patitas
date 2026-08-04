@@ -575,7 +575,10 @@ async function cargarDatos() {
   }
 }
   useEffect(() => {
-    const revisarTurnosVencidos = () => {
+  if (!puedeGestionarTurnos) {
+    return
+  }
+  const revisarTurnosVencidos = () => {
       const ahora = new Date()
       const vencidosDetectados = []
 
@@ -633,7 +636,11 @@ async function cargarDatos() {
     revisarTurnosVencidos()
     const intervalo = window.setInterval(revisarTurnosVencidos, 60000)
     return () => window.clearInterval(intervalo)
-  }, [clientes, mascotas])
+  }, [
+  clientes,
+  mascotas,
+  puedeGestionarTurnos,
+])
   if (cargando) {
     return (
       <section className="turnos-page">
