@@ -5,6 +5,7 @@ import {
   FaUserDoctor,
   FaPhone,
   FaWhatsapp,
+  FaKey,
   FaRightFromBracket,
 } from 'react-icons/fa6'
 import {
@@ -81,6 +82,9 @@ function Topbar() {
     localStorage.removeItem('usuario')
 
     navigate('/', { replace: true })
+  }
+    const irACambiarContrasena = () => {
+    navigate('/cambiar-contrasena')
   }
   const armarTelefono = (telefono) => {
     if (!telefono) return ''
@@ -230,11 +234,26 @@ function Topbar() {
   <FaUserDoctor />
 </div>
 
+<div className="admin-avatar">
+  <FaUserDoctor />
+</div>
+
+<button
+  type="button"
+  className="btn-cambiar-password-topbar"
+  onClick={irACambiarContrasena}
+  title="Cambiar contraseña"
+>
+  <FaKey />
+  <span>Cambiar contraseña</span>
+</button>
+
 <button
   type="button"
   className="btn-cerrar-sesion"
   onClick={cerrarSesion}
   title="Cerrar sesión"
+  aria-label="Cerrar sesión"
 >
   <FaRightFromBracket />
 </button>
