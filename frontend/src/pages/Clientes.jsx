@@ -17,6 +17,7 @@ import {
 } from '../services/clientesService'
 
 import { soloLetras, soloNumeros } from '../utils/validaciones'
+import { obtenerUsuarioGuardado } from '../utils/permisos'
 import './Clientes.css'
 
 const clienteVacio = {
@@ -29,6 +30,17 @@ const clienteVacio = {
 }
 
 function Clientes() {
+  const usuario = obtenerUsuarioGuardado()
+
+  const rol = String(usuario?.rol || '')
+    .trim()
+    .toLowerCase()
+
+  const puedeGestionarClientes = [
+    'administrador',
+    'recepcionista',
+  ].includes(rol)
+
   const [clientes, setClientes] = useState([])
   const [busqueda, setBusqueda] = useState('')
   const [mostrarFormulario, setMostrarFormulario] = useState(false)
@@ -91,6 +103,9 @@ function Clientes() {
   }, [clientes, busqueda])
 
   const abrirNuevoCliente = () => {
+    if (!puedeGestionarClientes) {
+      return
+    }
     setFormulario({ ...clienteVacio })
     setModoEdicion(false)
     setClienteSeleccionado(null)
@@ -106,6 +121,9 @@ function Clientes() {
   }
 
   const abrirEditarCliente = (cliente) => {
+    if (!puedeGestionarClientes) {
+      return
+    }
     setFormulario({ ...cliente })
     setClienteSeleccionado(cliente)
     setModoEdicion(true)
@@ -225,7 +243,12 @@ function Clientes() {
       setErrorFormulario(error)
       return
     }
-
+    if (!puedeGestionarClientes) {
+      setErrorFormulario(
+        'Tu rol solamente puede consultar clientes.',
+      )
+      return
+    }
     const datosCliente = {
       nombre: formulario.nombre.trim(),
       apellido: formulario.apellido.trim(),
@@ -281,6 +304,9 @@ function Clientes() {
   }
 
   const eliminarCliente = async (cliente) => {
+    if (!puedeGestionarClientes) {
+      return
+    }
     const confirmar = window.confirm(
       `¿Seguro que querés eliminar a ${cliente.nombre} ${cliente.apellido}?`
     )
@@ -316,14 +342,16 @@ function Clientes() {
           <p>Gestión de dueños registrados en la veterinaria</p>
         </div>
 
-        <button
-          type="button"
-          className="btn-nuevo-cliente"
-          onClick={abrirNuevoCliente}
-        >
-          <FaPlus />
-          Nuevo Cliente
-        </button>
+        {puedeGestionarClientes && (
+  <button
+    type="button"
+    className="btn-nuevo-cliente"
+    onClick={abrirNuevoCliente}
+  >
+    <FaPlus />
+    Nuevo Cliente
+  </button>
+)}
       </header>
 
       {errorCarga && (
@@ -421,25 +449,29 @@ function Clientes() {
                             <FaEye />
                           </button>
 
-                          <button
-                            type="button"
-                            className="btn-accion editar"
-                            onClick={() => abrirEditarCliente(cliente)}
-                            title="Editar cliente"
-                            aria-label={`Editar a ${cliente.nombre} ${cliente.apellido}`}
-                          >
-                            <FaPen />
-                          </button>
+                          {puedeGestionarClientes && (
+  <>
+    <button
+      type="button"
+      className="btn-accion editar"
+      onClick={() => abrirEditarCliente(cliente)}
+      title="Editar cliente"
+      aria-label={`Editar a ${cliente.nombre} ${cliente.apellido}`}
+    >
+      <FaPen />
+    </button>
 
-                          <button
-                            type="button"
-                            className="btn-accion eliminar"
-                            onClick={() => eliminarCliente(cliente)}
-                            title="Eliminar cliente"
-                            aria-label={`Eliminar a ${cliente.nombre} ${cliente.apellido}`}
-                          >
-                            <FaTrash />
-                          </button>
+    <button
+      type="button"
+      className="btn-accion eliminar"
+      onClick={() => eliminarCliente(cliente)}
+      title="Eliminar cliente"
+      aria-label={`Eliminar a ${cliente.nombre} ${cliente.apellido}`}
+    >
+      <FaTrash />
+    </button>
+  </>
+)}
                         </div>
                       </td>
                     </tr>
@@ -640,15 +672,18 @@ function Clientes() {
                     </strong>
                   </div>
                 </div>
-
-                <button
-                  type="button"
-                  className="btn-editar-detalle"
-                  onClick={() => abrirEditarCliente(clienteSeleccionado)}
-                >
-                  <FaPen />
-                  Editar Cliente
-                </button>
+                {puedeGestionarClientes && (
+  <button
+    type="button"
+    className="btn-editar-detalle"
+    onClick={() =>
+      abrirEditarCliente(clienteSeleccionado)
+    }
+  >
+    <FaPen />
+    Editar Cliente
+  </button>
+)}
               </>
             )}
           </aside>

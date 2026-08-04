@@ -234,10 +234,6 @@ function Topbar() {
   <FaUserDoctor />
 </div>
 
-<div className="admin-avatar">
-  <FaUserDoctor />
-</div>
-
 <button
   type="button"
   className="btn-cambiar-password-topbar"
