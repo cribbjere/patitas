@@ -24,7 +24,7 @@ import {
   soloLetras,
   soloNumerosDecimales,
 } from '../utils/validaciones'
-
+import { obtenerUsuarioGuardado } from '../utils/permisos'
 import './Mascotas.css'
 
 const mascotaVacia = {
@@ -42,6 +42,16 @@ const mascotaVacia = {
 }
 
 function Mascotas() {
+  const usuario = obtenerUsuarioGuardado()
+
+  const rol = String(usuario?.rol || '')
+    .trim()
+    .toLowerCase()
+
+  const puedeGestionarMascotas = [
+    'administrador',
+    'recepcionista',
+  ].includes(rol)
   const [clientes, setClientes] = useState([])
   const [especies, setEspecies] = useState([])
   const [mascotas, setMascotas] = useState([])
@@ -203,7 +213,10 @@ function Mascotas() {
     })
   }, [mascotas, busqueda, clientes, especies])
 
-  const abrirNuevaMascota = () => {
+    const abrirNuevaMascota = () => {
+    if (!puedeGestionarMascotas) {
+      return
+    }
     setFormulario({ ...mascotaVacia })
     setMascotaSeleccionada(null)
     setModoEdicion(false)
@@ -219,6 +232,9 @@ function Mascotas() {
   }
 
   const abrirEditarMascota = (mascota) => {
+    if (!puedeGestionarMascotas) {
+      return
+    }
     setFormulario({
       ...mascota,
       clienteId: mascota.clienteId ?? '',
@@ -356,7 +372,14 @@ function Mascotas() {
   }
 
   const guardarMascota = async (evento) => {
-    evento.preventDefault()
+  evento.preventDefault()
+
+    if (!puedeGestionarMascotas) {
+      setErrorFormulario(
+        'Tu rol solamente puede consultar mascotas.',
+      )
+      return
+    }
 
     const error = validarFormulario()
 
@@ -436,6 +459,10 @@ function Mascotas() {
   }
 
   const eliminarMascota = async (mascota) => {
+    if (!puedeGestionarMascotas) {
+      return
+    }
+
     const confirmar = window.confirm(
       `¿Seguro que querés eliminar a ${mascota.nombre}?`
     )
@@ -473,14 +500,16 @@ function Mascotas() {
           <p>Registro de mascotas y relación con sus dueños</p>
         </div>
 
-        <button
-          type="button"
-          className="btn-nueva-mascota"
-          onClick={abrirNuevaMascota}
-        >
-          <FaPlus />
-          Nueva Mascota
-        </button>
+        {puedeGestionarMascotas && (
+  <button
+    type="button"
+    className="btn-nueva-mascota"
+    onClick={abrirNuevaMascota}
+  >
+    <FaPlus />
+    Nueva Mascota
+  </button>
+)}
       </header>
 
       {errorCarga && (
@@ -612,17 +641,33 @@ function Mascotas() {
                               <FaEye />
                             </button>
 
-                            <button
-                              type="button"
-                              className="btn-accion editar"
-                              onClick={() =>
-                                abrirEditarMascota(mascota)
-                              }
-                              title="Editar mascota"
-                              aria-label={`Editar a ${mascota.nombre}`}
-                            >
-                              <FaPen />
-                            </button>
+                            {puedeGestionarMascotas && (
+  <>
+    <button
+      type="button"
+      className="btn-accion editar"
+      onClick={() =>
+        abrirEditarMascota(mascota)
+      }
+      title="Editar mascota"
+      aria-label={`Editar a ${mascota.nombre}`}
+    >
+      <FaPen />
+    </button>
+
+    <button
+      type="button"
+      className="btn-accion eliminar"
+      onClick={() =>
+        eliminarMascota(mascota)
+      }
+      title="Eliminar mascota"
+      aria-label={`Eliminar a ${mascota.nombre}`}
+    >
+      <FaTrash />
+    </button>
+  </>
+)}
 
                             <button
                               type="button"
@@ -1038,18 +1083,20 @@ function Mascotas() {
                   </div>
                 </div>
 
-                <button
-                  type="button"
-                  className="btn-editar-detalle"
-                  onClick={() =>
-                    abrirEditarMascota(
-                      mascotaSeleccionada
-                    )
-                  }
-                >
-                  <FaPen />
-                  Editar Mascota
-                </button>
+                {puedeGestionarMascotas && (
+  <button
+    type="button"
+    className="btn-editar-detalle"
+    onClick={() =>
+      abrirEditarMascota(
+        mascotaSeleccionada
+      )
+    }
+  >
+    <FaPen />
+    Editar Mascota
+  </button>
+)}
               </>
             )}
           </aside>
